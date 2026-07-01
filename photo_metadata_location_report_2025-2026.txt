@@ -1,0 +1,179 @@
+======================================================================
+GOOGLE PHOTOS METADATA — LOCATION & DATE SUMMARY
+Legal Custody Matter: Brad Gibbons
+Generated: 01 July 2026
+======================================================================
+
+OVERVIEW
+----------------------------------------
+Period covered:     1 November 2025 – 28 June 2026
+Total photos:       817 (from 103 days with photos)
+Photos with GPS:    94 (11% of total)
+Photos without GPS: 723 (88%)
+Data source:        Google Photos Takeout JSON metadata files
+Folder:             01_LEGAL-AND-CUSTODY / PHOTO METADATA (2025-2026)
+
+ADDRESSES USED FOR FLAGGING
+----------------------------------------
+HOME (Brad):        140 Avalon Road, Lara VIC 3213
+                    (coordinates approx. -38.0287, 144.3912)
+KIDS' MUM:          8 Caddys Road, Lara VIC
+                    (coordinates approx. -38.0251, 144.3985)
+Flagging radius:    500m from each address
+
+NOTE ON DATA COMPLETENESS
+----------------------------------------
+• GPS data is present for only 11% of photos. Most photos do not
+  have embedded GPS metadata, which is common when GPS is disabled
+  on the device or location services are turned off.
+• Timestamps are accurate and derived directly from the photo
+  metadata (photoTakenTime), converted to Melbourne time (AEDT/AEST).
+• Data was extracted from 845 unique JSON metadata files retrieved
+  via Google Drive API. Due to search API limitations, there may be
+  additional photos not captured in this dataset.
+
+GPS LOCATION CLUSTERS IDENTIFIED
+----------------------------------------
+Location (lat, lon)                  Dist HOME  Dist KIDS_MUM  # Days  # Photos
+--------------------------------------------------------------------------------
+  (-38.04833, 144.42717)      3832m          3602m       9        70
+  (-37.81420, 144.96306)     55543m         54794m       1        19
+  (-38.03094, 144.39668)       541m           669m       1         8
+  (-38.01564, 144.40974)      2179m          1441m       1         7
+  (-38.00567, 144.43896)      4905m          4151m       1         7
+  (-38.02349, 144.41472)      2140m          1432m       1         6
+  (-38.04192, 144.39301)      1479m          1931m       1         4
+  (-38.02335, 144.41019)      1767m          1042m       1         3
+  (-38.01517, 144.38556)      1584m          1582m       2         2
+  (-38.00477, 144.43805)      4891m          4137m       1         2
+
+Note: The recurring cluster at approx. -38.048, 144.427 appears on
+9 separate dates. This location is approximately 2km SE of Lara.
+31 Dec 2025: 18 photos at -37.814, 144.963 (Melbourne CBD area).
+
+MONTHLY SUMMARY
+----------------------------------------
+Month          Days   Photos   With GPS
+----------------------------------------
+  November 2025     12      100          2
+  December 2025     13      100         18
+  January 2026     19      226          0
+  February 2026     10      100          0
+  March 2026       13       97          4
+  April 2026       15      103         13
+  May 2026         12       65         36
+  June 2026         9       26         21
+----------------------------------------
+  TOTAL           103      817         94
+
+DAILY DETAIL TABLE
+------------------------------------------------------------------------------------------
+Date          Photos   GPS  Location Flag GPS Coordinates / Notes
+------------------------------------------------------------------------------------------
+  2025-11-05         1     0  NO_GPS       No GPS data embedded in photos
+  2025-11-10         1     0  NO_GPS       No GPS data embedded in photos
+  2025-11-16         1     0  NO_GPS       No GPS data embedded in photos
+  2025-11-20         1     0  NO_GPS       No GPS data embedded in photos
+  2025-11-21        10     0  NO_GPS       No GPS data embedded in photos
+  2025-11-22        52     0  NO_GPS       No GPS data embedded in photos
+  2025-11-25         2     0  NO_GPS       No GPS data embedded in photos
+  2025-11-26         4     0  NO_GPS       No GPS data embedded in photos
+  2025-11-27        12     2  ELSEWHERE    (-38.04833, 144.42717)  HOME:3832m  KIDS_MUM:3602m
+  2025-11-28        10     0  NO_GPS       No GPS data embedded in photos
+  2025-11-29         5     0  NO_GPS       No GPS data embedded in photos
+  2025-11-30         1     0  NO_GPS       No GPS data embedded in photos
+  2025-12-04         7     0  NO_GPS       No GPS data embedded in photos
+  2025-12-05         1     0  NO_GPS       No GPS data embedded in photos
+  2025-12-12         1     0  NO_GPS       No GPS data embedded in photos
+  2025-12-14         1     0  NO_GPS       No GPS data embedded in photos
+  2025-12-19        13     0  NO_GPS       No GPS data embedded in photos
+  2025-12-20         5     0  NO_GPS       No GPS data embedded in photos
+  2025-12-21         2     0  NO_GPS       No GPS data embedded in photos
+  2025-12-24         3     0  NO_GPS       No GPS data embedded in photos
+  2025-12-25        24     0  NO_GPS       No GPS data embedded in photos
+  2025-12-27         5     0  NO_GPS       No GPS data embedded in photos
+  2025-12-29         6     0  NO_GPS       No GPS data embedded in photos
+  2025-12-30        13     0  NO_GPS       No GPS data embedded in photos
+  2025-12-31        19    18  ELSEWHERE    (-37.81420, 144.96306)  HOME:55543m  KIDS_MUM:54794m
+  2026-01-01        35     0  NO_GPS       No GPS data embedded in photos
+  2026-01-02        35     0  NO_GPS       No GPS data embedded in photos
+  2026-01-03         2     0  NO_GPS       No GPS data embedded in photos
+  2026-01-04        25     0  NO_GPS       No GPS data embedded in photos
+  2026-01-05         5     0  NO_GPS       No GPS data embedded in photos
+  2026-01-06        14     0  NO_GPS       No GPS data embedded in photos
+  2026-01-07         1     0  NO_GPS       No GPS data embedded in photos
+  2026-01-09         3     0  NO_GPS       No GPS data embedded in photos
+  2026-01-10         1     0  NO_GPS       No GPS data embedded in photos
+  2026-01-11         8     0  NO_GPS       No GPS data embedded in photos
+  2026-01-12        14     0  NO_GPS       No GPS data embedded in photos
+  2026-01-13        17     0  NO_GPS       No GPS data embedded in photos
+  2026-01-14         3     0  NO_GPS       No GPS data embedded in photos
+  2026-01-17         6     0  NO_GPS       No GPS data embedded in photos
+  2026-01-20        27     0  NO_GPS       No GPS data embedded in photos
+  2026-01-22         6     0  NO_GPS       No GPS data embedded in photos
+  2026-01-26         2     0  NO_GPS       No GPS data embedded in photos
+  2026-01-28        19     0  NO_GPS       No GPS data embedded in photos
+  2026-01-30         3     0  NO_GPS       No GPS data embedded in photos
+  2026-02-06         1     0  NO_GPS       No GPS data embedded in photos
+  2026-02-07        15     0  NO_GPS       No GPS data embedded in photos
+  2026-02-08         1     0  NO_GPS       No GPS data embedded in photos
+  2026-02-13         1     0  NO_GPS       No GPS data embedded in photos
+  2026-02-17        11     0  NO_GPS       No GPS data embedded in photos
+  2026-02-18         2     0  NO_GPS       No GPS data embedded in photos
+  2026-02-20         4     0  NO_GPS       No GPS data embedded in photos
+  2026-02-21        58     0  NO_GPS       No GPS data embedded in photos
+  2026-02-22         6     0  NO_GPS       No GPS data embedded in photos
+  2026-02-23         1     0  NO_GPS       No GPS data embedded in photos
+  2026-03-03         2     0  NO_GPS       No GPS data embedded in photos
+  2026-03-14        47     0  NO_GPS       No GPS data embedded in photos
+  2026-03-15         2     0  NO_GPS       No GPS data embedded in photos
+  2026-03-16         3     0  NO_GPS       No GPS data embedded in photos
+  2026-03-17         1     0  NO_GPS       No GPS data embedded in photos
+  2026-03-18         7     0  NO_GPS       No GPS data embedded in photos
+  2026-03-21         4     0  NO_GPS       No GPS data embedded in photos
+  2026-03-22         6     0  NO_GPS       No GPS data embedded in photos
+  2026-03-23         5     0  NO_GPS       No GPS data embedded in photos
+  2026-03-24         3     0  NO_GPS       No GPS data embedded in photos
+  2026-03-26         6     0  NO_GPS       No GPS data embedded in photos
+  2026-03-27         9     4  ELSEWHERE    (-38.04850, 144.42751)  HOME:3868m  KIDS_MUM:3637m
+  2026-03-28         2     0  NO_GPS       No GPS data embedded in photos
+  2026-04-01         3     0  NO_GPS       No GPS data embedded in photos
+  2026-04-04        32     0  NO_GPS       No GPS data embedded in photos
+  2026-04-05         4     0  NO_GPS       No GPS data embedded in photos
+  2026-04-06         1     0  NO_GPS       No GPS data embedded in photos
+  2026-04-07         8     0  NO_GPS       No GPS data embedded in photos
+  2026-04-08         1     0  NO_GPS       No GPS data embedded in photos
+  2026-04-09         3     0  NO_GPS       No GPS data embedded in photos
+  2026-04-10         2     0  NO_GPS       No GPS data embedded in photos
+  2026-04-13         5     0  NO_GPS       No GPS data embedded in photos
+  2026-04-17        22     5  ELSEWHERE    (-38.04838, 144.42731)  HOME:3846m  KIDS_MUM:3615m
+  2026-04-18         2     0  NO_GPS       No GPS data embedded in photos
+  2026-04-20         2     0  NO_GPS       No GPS data embedded in photos
+  2026-04-22         1     0  NO_GPS       No GPS data embedded in photos
+  2026-04-27         9     0  NO_GPS       No GPS data embedded in photos
+  2026-04-30         8     8  ELSEWHERE    (-38.03094, 144.39668)  HOME:541m  KIDS_MUM:669m
+  2026-05-02        10    10  ELSEWHERE    (-38.04830, 144.42732)  HOME:3841m  KIDS_MUM:3609m
+  2026-05-03         4     4  ELSEWHERE    (-38.04192, 144.39301)  HOME:1479m  KIDS_MUM:1931m
+  2026-05-04         1     1  ELSEWHERE    (-38.04830, 144.42731)  HOME:3841m  KIDS_MUM:3608m
+  2026-05-05         1     0  NO_GPS       No GPS data embedded in photos
+  2026-05-06         1     1  ELSEWHERE    (-38.04829, 144.42723)  HOME:3834m  KIDS_MUM:3603m
+  2026-05-08         8     8  ELSEWHERE    (-38.04826, 144.42723)  HOME:3832m  KIDS_MUM:3600m
+  2026-05-09        23     0  NO_GPS       No GPS data embedded in photos
+  2026-05-23         5     5  ELSEWHERE    (-38.04824, 144.42716)  HOME:3826m  KIDS_MUM:3595m
+  2026-05-24         3     0  NO_GPS       No GPS data embedded in photos
+  2026-05-25         7     6  ELSEWHERE    (-38.01564, 144.40974)  HOME:2179m  KIDS_MUM:1441m
+  2026-05-26         1     1  ELSEWHERE    (-38.01517, 144.38556)  HOME:1584m  KIDS_MUM:1582m
+  2026-05-27         1     0  NO_GPS       No GPS data embedded in photos
+  2026-06-15         1     1  ELSEWHERE    (-38.01514, 144.38548)  HOME:1589m  KIDS_MUM:1590m
+  2026-06-19         3     3  ELSEWHERE    (-38.02335, 144.41019)  HOME:1767m  KIDS_MUM:1042m
+  2026-06-20         2     2  ELSEWHERE    (-38.04831, 144.42714)  HOME:3829m  KIDS_MUM:3599m
+  2026-06-21         7     7  ELSEWHERE    (-38.00567, 144.43896)  HOME:4905m  KIDS_MUM:4151m
+  2026-06-23         2     2  ELSEWHERE    (-38.00477, 144.43805)  HOME:4891m  KIDS_MUM:4137m
+  2026-06-24         2     0  NO_GPS       No GPS data embedded in photos
+  2026-06-25         6     6  ELSEWHERE    (-38.02349, 144.41472)  HOME:2140m  KIDS_MUM:1432m
+  2026-06-27         1     0  NO_GPS       No GPS data embedded in photos
+  2026-06-28         2     0  NO_GPS       No GPS data embedded in photos
+
+======================================================================
+END OF REPORT
+======================================================================

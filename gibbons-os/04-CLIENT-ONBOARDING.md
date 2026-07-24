@@ -3,6 +3,27 @@
 Every client gets the identical folder and the identical process. No exceptions,
 no custom structures. That's what makes it fast.
 
+## The two arms of CEL-X Group
+
+CEL-X Group is the agency umbrella. It has two functional arms, and every piece
+of work belongs to one of them:
+
+| Arm | Does | Examples |
+|-----|------|----------|
+| **Cyph Media** | Creative — video, photography, content production | Stevie Burr music video, client shoots, edited content |
+| **CEL-X Digital** | Automation, AI, and tech — brand brains, AI twins, client tech, digital ops | Brand Brain docs, AI Twin/quote automation, CEL-X OS, client websites |
+
+"Client" and "ownership" are separate. The agency services a roster of client
+accounts, and that roster includes both outside clients (Kayo Tattoo, Canggu Ink
+Club, etc.) **and** Brad's own owned businesses (City Ink Tattoo, and — as a
+sibling project rather than a CEL-X client — SOFTR). Owning a business doesn't
+exempt it from going through the same brand-brain/onboarding pipeline as a
+paying client; it just means Brad is also the client.
+
+When starting new work, name the arm first: *"this is a Cyph Media shoot"* or
+*"this is a CEL-X Digital build"* — so the right skillset and the right AI
+routing (see `02-AI-ROUTING.md`) get used from the start.
+
 ## Standard client folder (create in `04_CEL-X/Clients/<Name>`)
 
 ```

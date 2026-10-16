@@ -1,0 +1,11 @@
+{
+  "name": "yumi",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun src/server.ts",
+    "dev": "bun --watch src/server.ts",
+    "check": "bun build src/server.ts --target=bun --outdir=/tmp/yumi-check >/dev/null && echo ok",
+    "test": "bun test test/unit"
+  }
+}

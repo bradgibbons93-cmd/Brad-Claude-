@@ -284,6 +284,7 @@ await migrate();
 await auth.ensureSetupToken();
 await runImport();
 await refreshAll();
+for (const p of await auth.people()) if (p.role === "kid") console.log(`jar ${p.id}: ${JSON.stringify(await getDoc("pub/" + p.id))}`);
 if (await auth.setupNeeded()) {
   const tok = await auth.setupToken();
   console.log(process.env.SETUP_TOKEN ? "Setup: open /?setup=<your SETUP_TOKEN> to make the parent code." : `Setup: open /?setup=${tok} to make the parent code.`);

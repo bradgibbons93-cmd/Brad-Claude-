@@ -21,12 +21,28 @@ function readVar(): string | null {
   if (!first) return null;
   parts.push(first);
   for (let i = 2; i < 100; i++) { const v = process.env["YUMI_IMPORT_" + i]; if (!v) break; parts.push(v); }
-  return parts.join("").replace(/\s+/g, "");
+  const all = parts.join("");
+  return all.trimStart().startsWith("{") ? all : all.replace(/\s+/g, "");
+}
+
+/* Plain JSON or gzipped base64 JSON. */
+const decode = (raw: string) => raw.trimStart().startsWith("{") ? raw : new TextDecoder().decode(gunzipSync(Buffer.from(raw.replace(/\s+/g, ""), "base64")));
+
+/* A short fingerprint per collection, logged after an import so it can be checked against the source. */
+const canon = (v: any): string => Array.isArray(v) ? "[" + v.map(canon).join(",") + "]"
+  : v && typeof v === "object" ? "{" + Object.keys(v).sort().map(k => JSON.stringify(k) + ":" + canon(v[k])).join(",") + "}" : JSON.stringify(v);
+function fingerprints(docs: Record<string, any>) {
+  const groups: Record<string, string[]> = {};
+  for (const path of Object.keys(docs).sort()) {
+    const g = path.split("/").slice(0, -1).join("/");
+    (groups[g] ||= []).push(JSON.stringify(path) + ":" + canon(docs[path]));
+  }
+  return Object.entries(groups).map(([g, rows]) => `${g}=${sha(rows.join("\n")).slice(0, 8)}`).join(" ");
 }
 
 /* Reads a payload sent straight to the server (gzipped JSON in base64, or plain JSON). */
 export async function importFromBody(raw: string, log = console.log) {
-  const text = raw.trim().startsWith("{") ? raw : new TextDecoder().decode(gunzipSync(Buffer.from(raw.replace(/\s+/g, ""), "base64")));
+  const text = decode(raw);
   const hash = sha(text).slice(0, 16);
   if (await meta("import:" + hash)) return { hash, already: true };
   await applyPayload(JSON.parse(text), log);
@@ -42,7 +58,7 @@ export async function runImport(log = console.log) {
     if (await meta("import:" + hash)) log(`import ${hash}: already done`);
     else {
       let p: Payload;
-      try { p = JSON.parse(new TextDecoder().decode(gunzipSync(Buffer.from(raw, "base64")))); }
+      try { p = JSON.parse(decode(raw)); }
       catch (e) { log("import: could not read YUMI_IMPORT", String(e)); return; }
       await applyPayload(p, log);
       await setMeta("import:" + hash, new Date().toISOString());
@@ -69,6 +85,7 @@ export async function applyPayload(p: Payload, log = console.log) {
     art++;
   }
   log(`import: ${people} people, ${docs} records, ${art} pictures added`);
+  log(`import check: ${fingerprints(p.docs || {})}`);
 }
 
 /* Crew Stars (the earlier Railway app) kept its own star log in this same database.

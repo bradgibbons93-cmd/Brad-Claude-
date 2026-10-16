@@ -1,5 +1,6 @@
 import { getDoc, listDocs, putDoc, delDoc } from "./db";
 import { people, type Me } from "./auth";
+import { notify, type PushMsg } from "./push";
 
 /* The star rules, all worked out on the server so every phone agrees.
    - Stars and strikes never reset by the week.
@@ -47,9 +48,20 @@ export function dateOk(date: string) {
 }
 
 async function kidIds() { return (await people()).filter(p => p.role === "kid").map(p => p.id); }
+async function parentIds() { return (await people()).filter(p => p.role === "parent").map(p => p.id); }
 async function nameOf(id: string) {
   const p = await getDoc("people/" + id);
   return p?.nick || (await people()).find(x => x.id === id)?.name || id;
+}
+
+/* Lock-screen notifications go out in the background, so a slow push service never slows a tap. */
+const ping = (who: string[], msg: PushMsg) => { void notify(who, msg); };
+const pingParents = async (msg: PushMsg) => ping(await parentIds(), msg);
+
+/* Something for Dad's "Waiting for you" list, also sent to his lock screen. */
+async function addInbox(data: { kind: string; kid: string; title: string; sub: string; ref?: string }, emoji = "🔔") {
+  await putDoc(`inbox/${uid()}`, { ...data, at: iso(), seen: false }, "server");
+  await pingParents({ title: `${emoji} ${data.title}`, body: data.sub, tag: `inbox-${data.kind}-${data.kid}`, url: "/?tab=home" });
 }
 
 /* ---------- the jar ---------- */
@@ -102,7 +114,8 @@ export async function refreshKid(k: string) {
       const later = new Date(Date.parse(at) + 5).toISOString();
       await putDoc(`kids/${k}/log/${uid()}`, { type: "carry", n: carry, reason: "Carried over from my 100", at: later }, "server");
     }
-    await putDoc(`inbox/${uid()}`, { kind: "payday", kid: k, ref: `kids/${k}/payday/${id}`, title: `${await nameOf(k)} filled her jar! 100 stars`, sub: `Pay her $${PAYDAY_DOLLARS}, then tap Paid`, at, seen: false }, "server");
+    await addInbox({ kind: "payday", kid: k, ref: `kids/${k}/payday/${id}`, title: `${await nameOf(k)} filled her jar! 100 stars`, sub: `Pay her $${PAYDAY_DOLLARS}, then tap Paid` }, "💵");
+    ping([k], { title: "💵 PAYDAY! You filled your jar!", body: `${PAYDAY_STARS} stars = $${PAYDAY_DOLLARS} from Dad. So proud of you! 🎉`, tag: "payday", url: "/?tab=rewards" });
     s = await kidSummary(k, tz);
   }
   const pub = await getDoc(`pub/${k}`);
@@ -161,8 +174,10 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
     if (!(await mustBeKid(b.kid))) return fail("bad_kid");
     const n = Math.max(1, Math.min(5, Math.round(Number(b.n) || 1)));
     return locked("kid:" + b.kid, async () => {
-      await putDoc(`kids/${b.kid}/log/${uid()}`, { type: "star", n, reason: String(b.reason || "Star from Dad").slice(0, 60), at: iso(), by: me.id }, me.id);
+      const reason = String(b.reason || "Star from Dad").slice(0, 60);
+      await putDoc(`kids/${b.kid}/log/${uid()}`, { type: "star", n, reason, at: iso(), by: me.id }, me.id);
       const s = await refreshKid(b.kid); await refreshFamily();
+      ping([b.kid], { title: `⭐ ${await nameOf(me.id)} gave you ${n === 1 ? "a star" : n + " stars"}!`, body: `${reason} · ${s.stars} in your jar`, tag: "star", url: "/?tab=rewards" });
       return { ok: true, stars: s.stars };
     });
   },
@@ -176,9 +191,15 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
       const takesStar = count % STRIKES_PER_STAR === 0, principal = count >= PRINCIPAL_AT;
       await putDoc(`kids/${b.kid}/log/${uid()}`, { type: "strike", reason: String(b.reason || "Strike").slice(0, 60), at: iso(), by: me.id, count, takesStar, principal }, me.id);
       const name = await nameOf(b.kid);
-      if (principal) await putDoc(`inbox/${uid()}`, { kind: "principal", kid: b.kid, title: `${name} is on ${count} strikes`, sub: "She's been told her principal will hear about it. The app doesn't contact the school, that's your call.", at: iso(), seen: false }, "server");
-      else if (takesStar) await putDoc(`inbox/${uid()}`, { kind: "strike", kid: b.kid, title: `${name}'s ${ordinal(count)} strike`, sub: "1 ★ taken automatically", at: iso(), seen: false }, "server");
+      if (principal) await addInbox({ kind: "principal", kid: b.kid, title: `${name} is on ${count} strikes`, sub: "She's been told her principal will hear about it. The app doesn't contact the school, that's your call." }, "⚠️");
+      else if (takesStar) await addInbox({ kind: "strike", kid: b.kid, title: `${name}'s ${ordinal(count)} strike`, sub: "1 ★ taken automatically" }, "✖️");
       const s = await refreshKid(b.kid);
+      const reason = String(b.reason || "Strike").slice(0, 60);
+      ping([b.kid], {
+        title: `✖️ Strike: ${reason}`,
+        body: principal ? `That's ${count} strikes. Dad will let your principal know.` : takesStar ? `That's your ${ordinal(count)} strike, so 1 ★ came out of your jar.` : `${count} ${count === 1 ? "strike" : "strikes"}. Every 3rd one takes a star.`,
+        tag: "strike", url: "/?tab=rewards",
+      });
       return { ok: true, strikes: s.strikes, takesStar, principal };
     });
   },
@@ -228,6 +249,7 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
       await putDoc(dp, next, me.id);
       const s = await refreshKid(k);
       if (gained) await refreshFamily();
+      if (gained === 1 && me.id === k) await pingParents({ title: `⭐ ${await nameOf(k)} did her whole routine!`, body: `+1 star · ${s.stars} in her jar`, tag: `routine-${k}`, url: "/?tab=home" });
       return { ok: true, done: next.done, full, gained, stars: s.stars };
     });
   },
@@ -284,6 +306,7 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
       const id = uid();
       await putDoc(`kids/${me.id}/redeemed/${id}`, { reward: r.id, title: r.t, emoji: r.e, cost: r.cost, status: "pending", at: iso() }, me.id);
       const s2 = await refreshKid(me.id);
+      await pingParents({ title: `🎁 ${await nameOf(me.id)} picked a reward`, body: `${r.e || ""} ${r.t} · ${r.cost} ★`.trim(), tag: `reward-${me.id}`, url: "/?tab=home" });
       return { ok: true, id, stars: s2.stars };
     });
   },
@@ -296,6 +319,9 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
       if (!r) return fail("gone");
       await putDoc(path, { ...r, status: b.status, doneAt: iso() }, me.id);
       await refreshKid(b.kid);
+      if (r.status === "pending") ping([b.kid], b.status === "done"
+        ? { title: `🎁 Yes! ${r.title || "Your reward"}`, body: `${await nameOf(me.id)} said yes. Enjoy it!`, tag: "reward", url: "/?tab=rewards" }
+        : { title: `Not this time: ${r.title || "your reward"}`, body: "Your stars went back in your jar.", tag: "reward", url: "/?tab=rewards" });
       return { ok: true };
     });
   },
@@ -329,12 +355,60 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
 export async function afterWrite(me: Me, path: string, old: any, next: any) {
   const p = path.split("/");
   if (p[0] === "feed" && !old && next?.hug) {
-    await putDoc(`inbox/${uid()}`, { kind: "hug", kid: me.id, title: `${await nameOf(me.id)} would love a hug`, sub: next.text ? `"${String(next.text).slice(0, 80)}"` : "From her check-in", at: iso(), seen: false }, "server");
-  }
+    await addInbox({ kind: "hug", kid: me.id, title: `${await nameOf(me.id)} would love a hug`, sub: next.text ? `"${String(next.text).slice(0, 80)}"` : "From her check-in" }, "🤗");
+  } else if (p[0] === "feed" && !old && next) await feedPing(me, next);
   if (p[0] === "kids" && p[2] === "journal" && next?.shared && !old?.shared) {
-    await putDoc(`inbox/${uid()}`, { kind: "journal", kid: p[1], ref: path, title: `${await nameOf(p[1])} shared a journal page`, sub: next.title ? `"${String(next.title).slice(0, 60)}"` : "Tap to read it", at: iso(), seen: false }, "server");
+    await addInbox({ kind: "journal", kid: p[1], ref: path, title: `${await nameOf(p[1])} shared a journal page`, sub: next.title ? `"${String(next.title).slice(0, 60)}"` : "Tap to read it" }, "📓");
   }
   if (p[0] === "kids" && p[2] === "routine") await locked("kid:" + p[1], () => refreshKid(p[1]));
   if (p[0] === "settings" && p[1] === "goal") await refreshFamily();
   if (p[0] === "dad" && p[1] === "routine") await refreshParent(me.id);
+}
+
+/* New posts on the family wall: a girl's check-in goes to Dad; notes and messages go to whoever they're for. */
+async function feedPing(me: Me, f: any) {
+  const name = await nameOf(me.id);
+  if (f.mood) {
+    if (me.role === "kid") await pingParents({ title: `${name} checked in: ${MOOD_WORDS[f.mood] || f.mood}`, body: f.text ? String(f.text).slice(0, 120) : "", tag: `mood-${me.id}`, url: "/?tab=home" });
+    return;
+  }
+  if (!f.text) return;
+  const all = (await people()).map(p => p.id).filter(id => id !== me.id);
+  const to = typeof f.to === "string" && all.includes(f.to) ? [f.to] : all;
+  ping(to, { title: `💌 ${f.to ? `${name} sent you a note` : `New note from ${name}`}`, body: String(f.text).slice(0, 140), tag: "note", url: "/?tab=family&sub=notes" });
+}
+const MOOD_WORDS: Record<string, string> = { happy: "😄 Happy", excited: "🤩 Excited", calm: "😌 Calm", silly: "🤪 Silly", tired: "😴 Tired", worried: "😟 Worried", sad: "😢 Sad", grumpy: "😤 Grumpy" };
+
+/* ---------- routine reminders ---------- */
+/* Once a minute: at each slot's time, a gentle nudge to a girl who still has steps left in that slot.
+   Times can be changed in settings/family.reminders; a girl can turn them off (people/<id>.remind = false). */
+export const REMIND_AT: Record<string, string> = { morning: "07:15", after: "16:00", bed: "19:30" };
+const SLOT_WORDS: Record<string, [string, string]> = { morning: ["☀️", "Morning routine"], after: ["🎒", "After-school routine"], bed: ["🌙", "Bedtime routine"] };
+const reminded = new Set<string>();
+export async function remindTick(now = new Date()) {
+  const fam = await getDoc("settings/family");
+  if (fam?.reminders === false) return 0;
+  const times = { ...REMIND_AT, ...(fam?.reminders && typeof fam.reminders === "object" ? fam.reminders : {}) };
+  const tz = await familyTz();
+  const hm = new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
+  const slot = Object.keys(SLOT_WORDS).find(s => times[s] === hm);
+  if (!slot) return 0;
+  const date = ymdIn(tz, now);
+  let n = 0;
+  for (const k of await kidIds()) {
+    const key = `${k}:${date}:${slot}`;
+    if (reminded.has(key)) continue;
+    reminded.add(key);
+    if ((await getDoc("people/" + k))?.remind === false) continue;
+    const routine = await listDocs(`kids/${k}/routine`);
+    const done = new Set<string>((await getDoc(`kids/${k}/days/${date}`))?.done || []);
+    const slotLeft = routine.filter(r => r.data.slot === slot && !done.has(r.id)).length;
+    if (!slotLeft) continue;
+    const dayLeft = routine.filter(r => !done.has(r.id)).length;
+    const [e, t] = SLOT_WORDS[slot];
+    ping([k], { title: `${e} ${t}`, body: `${slotLeft} ${slotLeft === 1 ? "step" : "steps"} to tick${dayLeft === slotLeft ? " and today's star is yours ⭐" : ". Every one gets you closer to today's star ⭐"}`, tag: "remind", url: "/?tab=home" });
+    n++;
+  }
+  if (reminded.size > 500) reminded.clear();
+  return n;
 }

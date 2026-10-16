@@ -37,6 +37,9 @@ export async function migrate() {
   await sql`CREATE INDEX IF NOT EXISTS y_docs_seq ON y_docs (fam, seq)`;
   await sql`CREATE INDEX IF NOT EXISTS y_docs_parent ON y_docs (fam, parent) WHERE NOT deleted`;
   await sql`CREATE TABLE IF NOT EXISTS y_art (fam text NOT NULL, k text NOT NULL, mime text NOT NULL, bytes bytea NOT NULL, PRIMARY KEY (fam, k))`;
+  await sql`CREATE TABLE IF NOT EXISTS y_push (
+    endpoint text PRIMARY KEY, fam text NOT NULL, person text NOT NULL, device text, p256dh text NOT NULL, auth text NOT NULL,
+    created timestamptz NOT NULL DEFAULT now(), last_ok timestamptz, fails int NOT NULL DEFAULT 0)`;
 }
 
 export const parentOf = (path: string) => path.split("/").slice(0, -1).join("/");

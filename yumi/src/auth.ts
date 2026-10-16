@@ -5,7 +5,8 @@ import { sql, FAM, meta, setMeta } from "./db";
    - A signed-in phone keeps a session cookie (ys) until someone taps Sign out.
    - A phone that has ever been signed in is a "known device" (yd cookie). Kids can only type their
      code on a known device, so a stranger with the link can't guess a 4-number code.
-   - New phones get in with a one-time "Add a phone" code that a parent makes (10 minutes, one use).
+   - New phones get in with a one-time "Add a phone" code that a parent makes (10 minutes, or a day
+     when it's sent as a link; one use either way).
    - Wrong codes: 5 tries, then a wait. Parent codes wait longer. */
 
 export type Person = { id: string; name: string; role: "parent" | "kid"; hasCode: boolean; sort: number };
@@ -148,12 +149,12 @@ export async function setCode(personId: string, code: string | null) {
 }
 
 /* ---------- Add a phone ---------- */
-export async function makePairCode(personId: string) {
+export async function makePairCode(personId: string, minutes = 10) {
   await sql`DELETE FROM y_pairing WHERE expires < now() - interval '1 day'`;
   await sql`UPDATE y_pairing SET expires = now() WHERE fam = ${FAM} AND person = ${personId} AND used IS NULL AND expires > now()`;
   const bytes = crypto.getRandomValues(new Uint8Array(6));
   const code = Array.from(bytes, b => PAIR_ALPHABET[b % PAIR_ALPHABET.length]).join("");
-  await sql`INSERT INTO y_pairing (code, fam, person, expires) VALUES (${code}, ${FAM}, ${personId}, now() + interval '10 minutes')`;
+  await sql`INSERT INTO y_pairing (code, fam, person, expires) VALUES (${code}, ${FAM}, ${personId}, now() + make_interval(mins => ${Math.max(1, Math.min(24 * 60, Math.round(minutes)))}))`;
   return code;
 }
 
@@ -179,7 +180,7 @@ export async function devicesList() {
 export async function forgetDevice(shortId: string) {
   if (!/^[0-9a-f]{16}$/.test(shortId)) return false;
   const r = await sql`UPDATE y_devices SET revoked = now() WHERE fam = ${FAM} AND left(id_hash, 16) = ${shortId} AND revoked IS NULL RETURNING id_hash`;
-  for (const x of r) await sql`DELETE FROM y_sessions WHERE device = ${x.id_hash}`;
+  for (const x of r) { await sql`DELETE FROM y_sessions WHERE device = ${x.id_hash}`; await sql`DELETE FROM y_push WHERE device = ${x.id_hash}`; }
   return r.length > 0;
 }
 

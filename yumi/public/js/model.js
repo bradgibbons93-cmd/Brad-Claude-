@@ -98,10 +98,16 @@ export const accentOf = id => ACCENTS[P(id)?.accent] || (P(id)?.role === 'parent
 export const accentSoftOf = id => ACCENT_SOFT[P(id)?.accent] || '#E1EAFF';
 export const famName = () => S.boot?.family || 'Our family';
 
-export function avatar(id, kind = 'head', cls = 'av', style = '') {
+/* A picture someone chose themselves wins over the family drawing of them. */
+export function picOf(id, kind = 'head') {
   const p = P(id);
+  if (p?.pic) return `/art/${p.pic}?v=${Number(p.picV) || 0}`;
   const key = p?.art?.[kind] || p?.art?.head;
-  if (key) return `<span class="${cls}" style="${style}"><img src="/art/${esc(key)}" alt="" loading="lazy"></span>`;
+  return key ? `/art/${key}` : null;
+}
+export function avatar(id, kind = 'head', cls = 'av', style = '') {
+  const src = picOf(id, kind);
+  if (src) return `<span class="${cls}" style="${style}"><img src="${esc(src)}" alt="" loading="lazy"></span>`;
   return `<span class="${cls}" style="${style};background:${accentSoftOf(id)};color:${accentOf(id)}">${esc((p?.name || '?')[0])}</span>`;
 }
 export const buddyOf = id => BUDDIES.find(b => b.id === P(id)?.buddy) || null;

@@ -2,6 +2,7 @@
 import { $, esc, Store, api, today, ymd, parseYmd, addDays, DOW, uid, nowIso, ordinal, ago, fmtShort, Snd, Confetti, toast, openSheet, closeSheet, pickRow, picked, act, queued, write, setDoc, mergeDoc, delDoc } from './core.js';
 import { S, P, people, kids, avatar, short, nick, MOODS, STAR_REASONS, STRIKE_REASONS, EVENT_EMOJI, STARTER_ROUTINE, JOURNAL_PROMPTS, STICKERS, WISH_EMOJI, COVERS, PLAN_COLORS,
   homeFor, places, roster, routineOf, dayOf, strikesOf, rules, ideasList, isParent, isKid } from './model.js';
+import { isIOS, standalone, pushStatus, turnOn, turnOff } from './push.js';
 
 const kidOf = el => el?.dataset?.k || S.me.id;
 export const ROOM_ACTIONS = {
@@ -397,4 +398,99 @@ export const EXTRA_ACTIONS = {
     closeSheet(); Snd.magic(); toast(`Timer started: ${m} min`); S.render();
   },
   timerStop() { S.ui.timer = null; closeSheet(); Snd.tap(); S.render(); },
+};
+
+/* ---------- notifications ---------- */
+const SHARE_IC = '<svg class="ios-ic" viewBox="0 0 24 24" aria-label="Share"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+function pushSheet(st) {
+  const kid = isKid(), remind = P(S.me.id)?.remind !== false;
+  const body = {
+    on: `<p class="banner good">✓ On for this phone</p>
+      <p class="note">${kid ? 'You get a ping for stars, strikes, notes from Dad and your routine reminders.' : "You get a ping when the girls finish a routine, check in, pick a reward, share a page or want a hug."}</p>
+      ${kid ? `<button class="btn wide" data-act="remindToggle">⏰ Routine reminders: <b>${remind ? 'On' : 'Off'}</b></button>` : ''}
+      <div class="actions"><button class="btn bad small" data-act="pushOff">Turn off</button><button class="btn solid" data-act="pushTest">Send a test</button></div>`,
+    off: `<p class="note">${kid ? 'Get a ping when you earn a star, a note from Dad, and little reminders for your routine.' : 'Know the moment the girls finish their routine, check in, pick a reward or want a hug.'}</p>
+      <button class="btn solid wide" data-act="pushOn">Turn on notifications</button>`,
+    install: `<p class="note">On an iPhone, notifications work once Yumi is on your Home Screen:</p>
+      <ol class="installsteps"><li><i>1</i><span>Tap <b>Share</b> ${SHARE_IC} at the bottom of Safari</span></li><li><i>2</i><span>Tap <b>Add to Home Screen</b>, then <b>Add</b></span></li><li><i>3</i><span>Open <b>Yumi</b> from your Home Screen and tap <b>Turn on notifications</b></span></li></ol>
+      <p class="note">You'll still be signed in there.</p>`,
+    blocked: `<p class="note">Notifications for Yumi are switched off in this phone's settings.</p>
+      <p class="note"><b>iPhone:</b> Settings › Notifications › Yumi › Allow Notifications.<br><b>Android:</b> hold the Yumi icon › App info › Notifications.</p>`,
+    unsupported: `<p class="note">This browser can't show notifications. On an iPhone, add Yumi to your Home Screen (iOS 16.4 or newer). On Android, use Chrome.</p>`,
+  }[st] || '';
+  return `<h2 id="sheetTitle">🔔 Notifications</h2><div class="form">${body}</div>`;
+}
+const showPush = st => { S.ui.pushState = st; openSheet(pushSheet(st)); S.render(); };
+
+/* On an iPhone in Safari, the Home Screen copy opens holding a fresh one-time code, so it signs
+   straight in even if iOS keeps it separate from Safari. */
+async function primeInstall() {
+  if (!isIOS || standalone() || !S.me) return;
+  const r = await api('/pair/self', {});
+  if (r.ok) document.querySelector('link[rel=manifest]')?.setAttribute('href', '/manifest.webmanifest?join=' + r.code);
+}
+
+/* ---------- pictures ---------- */
+async function shrink(file, size = 400) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = url; });
+    const w = img.naturalWidth, h = img.naturalHeight, s = Math.min(w, h);
+    const c = document.createElement('canvas'); c.width = c.height = size;
+    /* Square from the middle, a little high, where faces usually are. */
+    c.getContext('2d').drawImage(img, (w - s) / 2, (h - s) * 0.3, s, s, 0, 0, size, size);
+    return c.toDataURL('image/jpeg', 0.86);
+  } finally { URL.revokeObjectURL(url); }
+}
+document.addEventListener('change', async e => {
+  const inp = e.target.closest?.('input[data-pic]');
+  const file = inp?.files?.[0]; if (!file) return;
+  const who = inp.dataset.pic; inp.value = '';
+  if (!/^image\//.test(file.type) && file.type) { toast("That's not a picture"); Snd.err(); return; }
+  toast('Saving your picture…');
+  let data; try { data = await shrink(file); } catch (err) { toast("Couldn't open that picture. Try another one."); Snd.err(); return; }
+  const r = await api('/me/picture', { data, who });
+  if (!r.ok) { toast(r.error === 'too_big' ? 'That picture is too big' : "Couldn't save it. Try again."); Snd.err(); return; }
+  Snd.fanfare(); Confetti.burst(innerWidth / 2, innerHeight / 3, 60); toast('New picture saved ✨');
+});
+
+export const MORE_ACTIONS = {
+  async pushOpen() {
+    Snd.tap();
+    const st = await pushStatus(); showPush(st);
+    if (st === 'install') primeInstall();
+  },
+  async pushOn(el) {
+    if (el) el.disabled = true;
+    let st;
+    try { st = await turnOn(); } catch (err) { console.error(err); st = 'error'; }
+    if (st === 'on') { Snd.fanfare(); Confetti.burst(innerWidth / 2, innerHeight / 3, 80); toast('Notifications on 🔔'); }
+    else if (st === 'blocked') toast('Notifications are switched off in Settings');
+    else if (st === 'error') { toast("Couldn't turn them on. Try again."); Snd.err(); }
+    showPush(await pushStatus());
+  },
+  async pushOff() { await turnOff().catch(() => {}); Snd.tap(); toast('Notifications off'); showPush(await pushStatus()); },
+  async pushTest() { const r = await api('/push/test', {}); toast(r.ok ? 'Sent! Check your lock screen 🔔' : "Couldn't reach this phone. Turn notifications off and on again."); },
+  async remindToggle() { const on = P(S.me.id)?.remind !== false; Snd.tick(); await mergeDoc('people/' + S.me.id, { remind: !on }); openSheet(pushSheet('on')); toast(on ? 'Reminders off' : 'Reminders on ⏰'); },
+  pushHide() { try { localStorage.setItem('yumi-push-hide', '1'); } catch (e) {} Snd.tap(); S.render(); },
+
+  async picClear(el) { const r = await api('/me/picture', { clear: true, who: el.dataset.k }); Snd.tap(); toast(r.ok ? 'Back to your old picture' : "Couldn't change it"); },
+
+  async linkMake(el) {
+    const who = el.dataset.k, r = await api('/pair/create', { who, link: true });
+    if (!r.ok) { toast("Couldn't make a link"); Snd.err(); return; }
+    S.ui.link = { who, code: r.code, url: `${location.origin}/?join=${r.code}` }; Snd.magic(); S.render();
+  },
+  async linkShare() {
+    const l = S.ui.link; if (!l) return;
+    const text = `Hi ${short(l.who)}! ⭐ Here's your Yumi link. Tap it on your phone:`;
+    if (navigator.share) { try { await navigator.share({ title: 'Yumi', text, url: l.url }); return; } catch (err) { if (err.name === 'AbortError') return; } }
+    MORE_ACTIONS.linkCopy();
+  },
+  async linkCopy() {
+    const l = S.ui.link; if (!l) return;
+    try { await navigator.clipboard.writeText(`Hi ${short(l.who)}! ⭐ Here's your Yumi link. Tap it on your phone: ${l.url}`); toast('Copied. Paste it into Messages'); Snd.check(); }
+    catch (err) { toast('Press and hold the link to copy it'); }
+  },
+  linkDone() { S.ui.link = null; S.ui.devices = null; Snd.tap(); S.render(); },
 };

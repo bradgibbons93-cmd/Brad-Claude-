@@ -2,7 +2,8 @@ import { join, normalize } from "node:path";
 import { sql, FAM, migrate, validPath, getDoc, putDoc, delDoc, changesSince, currentSeq, waitForChange, meta } from "./db";
 import * as auth from "./auth";
 import { readPath, canRead, checkWrite, type WriteOp } from "./rules";
-import { ACTIONS, afterWrite, refreshAll, DEFAULT_REWARDS, PAYDAY_STARS, PAYDAY_DOLLARS, STRIKES_PER_STAR, PRINCIPAL_AT } from "./stars";
+import { ACTIONS, afterWrite, refreshAll, remindTick, DEFAULT_REWARDS, PAYDAY_STARS, PAYDAY_DOLLARS, STRIKES_PER_STAR, PRINCIPAL_AT } from "./stars";
+import * as push from "./push";
 import { runImport, importFromBody, importArtBundle } from "./importer";
 
 const PORT = Number(process.env.PORT || 8080);
@@ -77,6 +78,7 @@ async function boot(req: Request, url: URL) {
     setupOk, rules: { paydayStars: PAYDAY_STARS, paydayDollars: PAYDAY_DOLLARS, strikesPerStar: STRIKES_PER_STAR, principalAt: PRINCIPAL_AT },
     me: me ? { id: me.id, name: me.name, role: me.role, hasCode: me.hasCode } : null,
   };
+  if (me) out.push = push.vapidPublic();
   /* The front door (pictures and star counts) only shows on phones the family has signed in on. */
   if (device || me || setupOk) {
     const ps = await auth.people();
@@ -213,6 +215,8 @@ async function api(req: Request, url: URL, server: any): Promise<Response> {
 
   if (path === "/logout" && req.method === "POST") {
     await auth.endSession(me);
+    /* A signed-out phone stops getting that person's notifications. */
+    if (me.device) await push.forgetDevicePush(me.device);
     return json({ ok: true }, 200, [["Set-Cookie", auth.clearCookie("ys")]]);
   }
   if (path === "/sync" && req.method === "GET") return json(await sync(req, url, me));
@@ -223,6 +227,48 @@ async function api(req: Request, url: URL, server: any): Promise<Response> {
     if (!fn) return json({ ok: false, error: "no_action" }, 404);
     const r = await fn(me, await body(req));
     return json(r, r.ok ? 200 : 400);
+  }
+
+  /* Lock-screen notifications for whoever is signed in on this phone. */
+  if (path === "/push/subscribe" && req.method === "POST") {
+    const b = await body(req);
+    const ok = await push.subscribe(me.id, me.device, b.sub);
+    if (ok && b.hello) await push.notify([me.id], { title: "🔔 Notifications are on!", body: me.role === "kid" ? "Stars, notes and reminders will pop up here ⭐" : "The girls' stars, check-ins and requests will pop up here.", tag: "hello" });
+    return json({ ok }, ok ? 200 : 400);
+  }
+  if (path === "/push/unsubscribe" && req.method === "POST") {
+    const b = await body(req);
+    if (typeof b.endpoint === "string") await push.unsubscribe(me.id, b.endpoint);
+    return json({ ok: true });
+  }
+  /* An iPhone moving Yumi from Safari to its Home Screen: a short one-time code for the same person,
+     so the Home Screen copy can sign itself in. */
+  if (path === "/pair/self" && req.method === "POST") return json({ ok: true, code: await auth.makePairCode(me.id, 30) });
+  if (path === "/push/test" && req.method === "POST") {
+    const n = await push.notify([me.id], { title: "⭐ Testing, testing!", body: "If you can read this, Yumi can reach your lock screen.", tag: "test" });
+    return json({ ok: n > 0, sent: n });
+  }
+
+  /* Anyone can change their own picture. Dad can change anyone's. It stays private like the other pictures. */
+  if (path === "/me/picture" && req.method === "POST") {
+    const b = await body(req, 800_000);
+    const target = me.role === "parent" && typeof b.who === "string" ? b.who : me.id;
+    if (!(await auth.person(target))) return json({ ok: false, error: "not_found" }, 404);
+    const k = `${target}_me`, doc = (await getDoc("people/" + target)) || {};
+    if (b.clear) {
+      await sql`DELETE FROM y_art WHERE fam = ${FAM} AND k = ${k}`;
+      await putDoc("people/" + target, { ...doc, pic: null, picV: Date.now() }, me.id);
+      return json({ ok: true });
+    }
+    const m = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/.exec(String(b.data || ""));
+    if (!m) return json({ ok: false, error: "not_a_picture" }, 400);
+    const bytes = Buffer.from(m[2], "base64");
+    const magic = m[1] === "jpeg" ? bytes[0] === 0xff && bytes[1] === 0xd8 : m[1] === "png" ? bytes.subarray(1, 4).toString() === "PNG" : bytes.subarray(8, 12).toString() === "WEBP";
+    if (!magic || bytes.length < 100) return json({ ok: false, error: "not_a_picture" }, 400);
+    if (bytes.length > 500_000) return json({ ok: false, error: "too_big" }, 413);
+    await sql`INSERT INTO y_art (fam, k, mime, bytes) VALUES (${FAM}, ${k}, ${"image/" + m[1]}, ${bytes}) ON CONFLICT (fam, k) DO UPDATE SET mime = EXCLUDED.mime, bytes = EXCLUDED.bytes`;
+    await putDoc("people/" + target, { ...doc, pic: k, picV: Date.now() }, me.id);
+    return json({ ok: true, pic: k });
   }
 
   /* A girl picks her own 4-number code the first time her phone is added. */
@@ -250,7 +296,9 @@ async function api(req: Request, url: URL, server: any): Promise<Response> {
     const b = await body(req);
     const p = await auth.person(String(b.who || ""));
     if (!p) return json({ ok: false, error: "not_found" }, 404);
-    return json({ ok: true, code: await auth.makePairCode(p.id), minutes: 10, hasCode: p.hasCode });
+    /* A link sent by message lasts a day; a code typed in front of Dad lasts 10 minutes. Either works once. */
+    const minutes = b.link ? 24 * 60 : 10;
+    return json({ ok: true, code: await auth.makePairCode(p.id, minutes), minutes, hasCode: p.hasCode });
   }
   if (path === "/devices" && req.method === "GET") return json({ ok: true, devices: await auth.devicesList(), mine: me.device?.slice(0, 16) || null });
   if (path === "/devices/forget" && req.method === "POST") {
@@ -280,7 +328,16 @@ async function art(req: Request, key: string) {
   return new Response(r[0].bytes, { headers: { "Content-Type": r[0].mime, "Cache-Control": "private, max-age=86400", ...SECURITY_HEADERS } });
 }
 
+/* A phone added to the Home Screen from a "join" link opens straight onto that link, so it can sign in there. */
+async function manifest(url: URL) {
+  const m = await Bun.file(join(PUBLIC, "manifest.webmanifest")).json();
+  const jc = (url.searchParams.get("join") || "").toUpperCase();
+  if (/^[A-Z0-9]{6}$/.test(jc)) m.start_url = "/?join=" + jc;
+  return new Response(JSON.stringify(m), { headers: { "Content-Type": "application/manifest+json", "Cache-Control": "no-cache", ...SECURITY_HEADERS } });
+}
+
 await migrate();
+await push.initPush();
 await auth.ensureSetupToken();
 await runImport();
 await importArtBundle();
@@ -300,6 +357,7 @@ const server = Bun.serve({
       if (url.pathname === "/healthz") { await sql`SELECT 1`; return new Response("ok"); }
       if (url.pathname.startsWith("/api/")) return await api(req, url, srv);
       if (url.pathname.startsWith("/art/")) return await art(req, url.pathname.slice(5));
+      if (url.pathname === "/manifest.webmanifest") return await manifest(url);
       if (url.pathname === "/robots.txt") return new Response("User-agent: *\nDisallow: /\n", { headers: { "Content-Type": "text/plain" } });
       const s = await serveStatic(url.pathname);
       if (s) return s;
@@ -313,3 +371,5 @@ const server = Bun.serve({
   },
 });
 console.log(`Yumi ${VERSION} on :${server.port}`);
+/* Routine reminders: checked every 20 seconds, sent once per slot per day. */
+setInterval(() => { remindTick().catch(e => console.error("remind", e)); }, 20_000);

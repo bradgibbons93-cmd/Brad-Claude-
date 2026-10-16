@@ -4,6 +4,7 @@ import { esc, Store, today, ymd, parseYmd, addDays, startOfWeek, DOW, DOWL, MON,
 import { S, P, people, kids, avatar, short, nick, famName, BUDDIES, THEMES, ACCENTS, MOODS, HARD_MOODS, FOODS, SLOTS, JOURNAL_PROMPTS, COVERS, PLAN_COLORS,
   IDEA_FILTERS, homeFor, homeName, nextSwitch, roster, places, placeOf, rhythm, routineOf, dayOf, routineStats, moodToday, starsOf, strikesOf,
   streakSet, rewardsList, ideasList, jobsFor, doneBy, rules, weekDays, isParent, isKid, buddyOf, buddyImg } from './model.js';
+import { isIOS } from './push.js';
 
 const hasArt = k => (S.boot?.art || []).includes(k);
 const slotNow = () => { const h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'after' : 'bed'; };
@@ -168,15 +169,29 @@ function tabHome() {
   const me = S.me.id;
   if (isParent()) {
     const w = waitingItems();
-    return `${hero()}${peopleCards()}
+    return `${hero()}${peopleCards()}${pushCard()}
       ${w.length ? `<section class="card" id="waiting"><div class="ch"><span class="badge b-pink">🔔</span><h3>Waiting for you</h3><em>${w.length}</em></div>${w.map(x => x.html).join('')}</section>` : ''}
       ${quickButtons()}${girlsStarsCard()}${dadRoutineCard()}${notesCard()}${todayCard()}`;
   }
-  return `${hero()}${peopleCards()}${principalCard(me)}${buddyCard(me)}
+  return `${hero()}${peopleCards()}${principalCard(me)}${pushCard()}${buddyCard(me)}
     ${routineCard(me)}
     <div class="duo"><div class="col">${starsCard(me)}</div><div class="col">${quickButtons()}${notesCard(true)}</div></div>
     ${moodCard(me)}${todayCard()}`;
 }
+
+/* Asks once (until dismissed) to turn on lock-screen notifications. */
+function pushCard() {
+  const st = S.ui.pushState;
+  let hidden = false; try { hidden = localStorage.getItem('yumi-push-hide') === '1'; } catch (e) {}
+  if (hidden || !['off', 'install'].includes(st)) return '';
+  const why = isParent() ? 'Know the moment the girls finish their routine, check in, pick a reward or want a hug.' : 'Get a ping when you earn a star, plus little reminders for your routine.';
+  return `<section class="card pushcard"><div class="ch"><span class="badge b-gold">🔔</span><h3>${isParent() ? 'Alerts on your lock screen' : 'Stars on your lock screen'}</h3><button class="x-btn" data-act="pushHide" aria-label="Not now">✕</button></div>
+    <p class="note">${why}</p>
+    <button class="btn solid" data-act="${st === 'off' ? 'pushOn' : 'pushOpen'}">${st === 'off' ? 'Turn on notifications' : 'Show me how'}</button></section>`;
+}
+const PUSH_LABEL = { on: 'On ✓', off: 'Off', blocked: 'Blocked', install: 'Needs Home Screen', unsupported: 'Not on this phone' };
+export const pushTile = cls => `<button class="${cls}" data-act="pushOpen"><i>🔔</i><b>Notifications</b><small>${PUSH_LABEL[S.ui.pushState] || '…'}</small></button>`;
+const picEdit = k => `<label class="avedit" aria-label="Change picture">${avatar(k)}<span class="cam">📷</span><input type="file" accept="image/*" data-pic="${esc(k)}" class="vh"></label>`;
 
 /* ---------- Routines ---------- */
 function streakLine(k) {
@@ -404,13 +419,14 @@ function tabMe() {
   if (S.sub === 'planner') return plannerPage(k);
   if (S.sub === 'wish') return wishPage(k);
   const p = P(k), b = buddyOf(k);
-  return `<div class="profile">${avatar(k)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || '')}</p><p>⭐ ${starsOf(k)} · 🔥 ${streakOf(k)} days${b ? ` · ${esc(b.name)}` : ''}</p></div></div>
+  return `<div class="profile">${picEdit(k)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || '')}</p><p>⭐ ${starsOf(k)} · 🔥 ${streakOf(k)} days${b ? ` · ${esc(b.name)}` : ''}</p></div></div>
     <div class="tiles">
       <button class="c-lilac" data-act="sub" data-sub="journal"><i>📓</i><b>My Journal</b><small>Private unless you share</small></button>
-      <button class="c-pink" data-act="sub" data-sub="mine"><i>🎨</i><b>Make it mine</b><small>Buddy, look, colour</small></button>
+      <button class="c-pink" data-act="sub" data-sub="mine"><i>🎨</i><b>Make it mine</b><small>Picture, buddy, look</small></button>
       <button class="c-mint" data-act="sub" data-sub="planner"><i>🗓️</i><b>My Planner</b><small>${Store.col(`kids/${k}/plans`).filter(x => !x.done).length} to do</small></button>
       <button class="c-sun" data-act="sub" data-sub="wish"><i>🎁</i><b>Wishlist</b><small>${Store.col(`kids/${k}/wishlist`).length} wishes</small></button>
-      <button class="c-blue" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
+      ${pushTile('c-blue')}
+      <button class="c-mint" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
       <button class="c-ocean" data-act="signOut"><i>👋</i><b>Sign out</b><small>Your code brings you back</small></button>
     </div>`;
 }
@@ -432,6 +448,11 @@ function minePage(k) {
   const p = P(k), b = p.buddy, th = p.theme || 'classic', ac = p.accent || 'pink';
   return `${S.ui.intro ? `<div class="backrow"></div><div class="banner good">🎉 <span>You're in! Pick your buddy and how Yumi looks. You can change it any time.</span></div>` : backBtn()}
     <h1 class="t-b">Make it mine</h1>
+    <section class="card"><div class="ch"><span class="badge b-pink">📷</span><h3>My picture</h3></div>
+      <div class="picrow">${picEdit(k)}<div class="col">
+        <label class="btn solid">📷 New picture<input type="file" accept="image/*" data-pic="${esc(k)}" class="vh"></label>
+        ${p.pic ? `<button class="btn" data-act="picClear" data-k="${esc(k)}">Use my old one</button>` : '<small class="note">Take a selfie or pick one from your photos.</small>'}
+      </div></div></section>
     <div class="bgrid">${BUDDIES.map(x => `<button class="bcard ${b === x.id ? 'on' : ''}" data-act="setMine" data-f="buddy" data-v="${x.id}" aria-pressed="${b === x.id}">${buddyImg(x, '')}<b>${esc(x.name)}</b><small>${esc(x.what)}</small></button>`).join('')}</div>
     <section class="card"><div class="ch"><span class="badge b-pink">🎀</span><h3>My look</h3></div><div class="thm">${THEMES.map(([id, t]) => `<button class="${id} ${th === id ? 'on' : ''}" data-act="setMine" data-f="theme" data-v="${id}">${t}</button>`).join('')}</div></section>
     <section class="card"><div class="ch"><span class="badge b-lilac">🎨</span><h3>My colour</h3></div><div class="swatches">${Object.entries(ACCENTS).map(([id, c]) => `<button style="background:${c}" class="${ac === id ? 'on' : ''}" data-act="setMine" data-f="accent" data-v="${id}" aria-label="${id}">${ac === id ? '✓' : ''}</button>`).join('')}</div></section>
@@ -462,13 +483,14 @@ function wishPage(k) {
 
 function parentMenu() {
   const p = P(S.me.id);
-  return `<div class="profile">${avatar(S.me.id)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || 'Parent')}</p><p>🔥 ${Number(p.pub?.streak) || 0} day streak</p></div></div>
+  return `<div class="profile">${picEdit(S.me.id)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || 'Parent')}</p><p>🔥 ${Number(p.pub?.streak) || 0} day streak</p></div></div>
     <div class="tiles">
       <button class="c-lilac" data-act="sub" data-sub="phones"><i>📱</i><b>Phones</b><small>Add a phone, codes</small></button>
       <button class="c-blue" data-act="sub" data-sub="settings"><i>🏠</i><b>Houses &amp; goal</b><small>Pattern, places, family goal</small></button>
       <button class="c-mint" data-act="goGirlsWeek"><i>🧭</i><b>Girls' week</b><small>What they'd like</small></button>
       <a class="c-sun" href="/api/export" download><i>💾</i><b>Backup</b><small>Download everything</small></a>
-      <button class="c-pink" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
+      ${pushTile('c-pink')}
+      <button class="c-mint" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
       <button class="c-ocean" data-act="signOut"><i>👋</i><b>Sign out</b><small>Your code brings you back</small></button>
     </div>`;
 }
@@ -477,14 +499,22 @@ function phonesPage() {
   const pc = S.ui.pair, devs = S.ui.devices;
   if (!devs && !S.ui.devLoading) S.loadDevices?.();
   const left = pc ? Math.max(0, Math.round((pc.until - Date.now()) / 1000)) : 0;
+  const ln = S.ui.link;
   return `${backBtn()}<h1 class="t-b">📱 Phones</h1>
+    <section class="card"><div class="ch"><span class="badge b-pink">💌</span><h3>Send the girls their link</h3></div>
+      ${ln ? `<p class="note">${esc(short(ln.who))}'s link is ready. Send it by Messages and she taps it on her phone.</p>
+        <div class="linkbox">${esc(ln.url)}</div>
+        <div class="row" style="flex-wrap:wrap"><button class="btn solid" data-act="linkShare">Send it ↑</button><button class="btn" data-act="linkCopy">Copy</button><button class="btn small" data-act="linkDone">Done</button></div>
+        <p class="note">Works once, until this time tomorrow. If she's asked for a code, it's <b>${esc(ln.code.slice(0, 3))} ${esc(ln.code.slice(3))}</b>.</p>`
+      : `<p class="note">Makes a link that adds her phone. It works once, for a day. On an iPhone it shows her how to put Yumi on her Home Screen, so she gets notifications too.</p>
+        <div class="row" style="flex-wrap:wrap">${kids().map(k => `<button class="btn" data-act="linkMake" data-k="${esc(k.id)}">${avatar(k.id)}${esc(k.nick || k.name)}'s link</button>`).join('')}</div>`}</section>
     <section class="card"><div class="ch"><span class="badge b-lilac">📲</span><h3>Add a phone</h3></div>
       ${pc && left > 0 ? `<p class="note">On ${esc(nick(pc.who))}'s phone, open the Yumi link and type:</p>
         <div class="code6">${esc(pc.code.slice(0, 3))}&nbsp;${esc(pc.code.slice(3))}</div>
         <p class="note" style="text-align:center">Works for ${Math.ceil(left / 60)} more ${Math.ceil(left / 60) === 1 ? 'minute' : 'minutes'} · one phone only</p>
         <ol class="steps-howto"><li>Code accepted: "This phone is for ${esc(P(pc.who)?.name || '')} ♡"</li>${P(pc.who)?.role === 'kid' && !pc.hasCode ? '<li>She picks her 4-number code and her buddy</li>' : ''}<li>Share ↑ › Add to Home Screen</li><li>Done. It stays signed in until someone taps Sign out</li></ol>
         <button class="btn small" data-act="pairDone">Close</button>`
-      : `<p class="note">Who is the phone for? You'll get a code that works once, for 10 minutes.</p><div class="row" style="flex-wrap:wrap">${people().map(p => `<button class="btn" data-act="pairMake" data-k="${esc(p.id)}">${avatar(p.id)}${esc(p.role === 'kid' ? p.nick || p.name : p.name)}</button>`).join('')}</div>`}</section>
+      : `<p class="note">Phone right here? You'll get a code to type in that works once, for 10 minutes.</p><div class="row" style="flex-wrap:wrap">${people().map(p => `<button class="btn" data-act="pairMake" data-k="${esc(p.id)}">${avatar(p.id)}${esc(p.role === 'kid' ? p.nick || p.name : p.name)}</button>`).join('')}</div>`}</section>
     <section class="card"><div class="ch"><span class="badge b-pink">🔢</span><h3>The girls' codes</h3></div>${kids().map(k => `<div class="devrow">${avatar(k.id)}<span class="tt"><b>${esc(k.name)}</b><small>${k.hasCode ? 'Has a 4-number code' : 'No code yet. She picks one when her phone is added.'}</small></span><button class="btn small" data-act="kidCode" data-k="${esc(k.id)}">${k.hasCode ? 'Change' : 'Set'}</button></div>`).join('')}
       <p class="note">Forgot her code? Set a new one here and tell her.</p></section>
     <section class="card"><div class="ch"><span class="badge b-blue">📱</span><h3>Signed-in phones</h3></div>

@@ -42,7 +42,7 @@ export function canRead(c: Ctx, path: string, data: any): boolean {
   return false;
 }
 
-const KID_PROFILE_FIELDS = new Set(["buddy", "theme", "accent", "journalTitle", "journalColor", "journalStickers", "seenPrincipal", "seenIntro"]);
+const KID_PROFILE_FIELDS = new Set(["buddy", "theme", "accent", "journalTitle", "journalColor", "journalStickers", "seenPrincipal", "seenIntro", "remind"]);
 
 export type WriteOp = { path: string; set?: any; merge?: any; del?: boolean };
 export type Check = { ok: true; data?: any } | { ok: false; why: string };

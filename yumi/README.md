@@ -50,5 +50,10 @@ bun test test/unit
      sent to `POST /api/import` with `{ "token": SETUP_TOKEN, "payload": "..." }` before setup.
 3. Generate a domain, then open `https://<domain>/?setup=<SETUP_TOKEN>`.
 
+Lock-screen notifications use Web Push with no extra packages. The server makes its own key pair on
+first start (kept in the database), so there's nothing to configure. iPhones need Yumi on the Home
+Screen (iOS 16.4+) before notifications can be turned on; the app shows how. Routine reminders go out
+at 7:15, 16:00 and 19:30 in the family's time zone, only when steps are left. A girl can turn them off.
+
 Family data, photos and pictures of the family never go in this repository. Pictures arrive
 through the import and are served only to phones the family has signed in on.

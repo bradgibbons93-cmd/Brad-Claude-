@@ -1,6 +1,6 @@
 /* Getting in: the front door, codes, "Add a phone", and first-time setup. */
 import { esc, api, Snd, toast, today } from './core.js';
-import { S, people, P, avatar, accentOf, famName, homeFor, homeName, nextSwitch, rules } from './model.js';
+import { S, people, P, avatar, picOf, accentOf, famName, homeFor, homeName, nextSwitch, rules } from './model.js';
 
 const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
@@ -14,6 +14,7 @@ function keypad(len, buf) {
 
 export function viewDoor() {
   const u = S.ui;
+  if (u.join) return viewJoin();
   if (u.setup) return viewSetup();
   if (u.choose) return viewChoose();
   if (u.pin) return viewPin();
@@ -26,7 +27,7 @@ export function viewDoor() {
     ${lockup()}
     <p class="t-b" style="font-size:22px">Who's here?</p>
     <div class="who" style="--n:${Math.min(ps.length, 3)}">${ps.map(p => `<button class="pa" data-act="pickWho" data-who="${esc(p.id)}" style="--pc:${accentOf(p.id)}" aria-label="${esc(p.name)}">
-      <span class="fr">${p.art?.p ? `<img src="/art/${esc(p.art.p)}" alt="">` : `<span>${esc(p.name[0])}</span>`}</span>
+      <span class="fr">${picOf(p.id, 'p') ? `<img src="${esc(picOf(p.id, 'p'))}" alt="">` : `<span>${esc(p.name[0])}</span>`}</span>
       ${p.role === 'parent' ? `<small class="lk">🔒 ${esc(p.nick || 'Grown-up')}</small>` : `<small>★ ${Number(p.pub?.stars) || 0}</small>`}
       <b>${esc(p.name)}</b></button>`).join('')}</div>
     ${h !== 'unknown' ? `<div class="glass"><b>📅 Tonight: ${esc(homeName(h))}</b><small>${nx ? `${nx.home === 'dad' ? "Dad's" : nx.home === 'mum' ? "Mum's" : 'Swap'} in ${nx.sleeps} ${nx.sleeps === 1 ? 'sleep' : 'sleeps'}` : 'Same all fortnight'}</small></div>` : ''}
@@ -50,11 +51,49 @@ function viewWelcome() {
   </div></div>`;
 }
 
+const SHARE_IC = '<svg class="ios-ic" viewBox="0 0 24 24" aria-label="Share"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 10H6a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-9a1 1 0 0 0-1-1h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+const ADD_IC = '<svg class="ios-ic" viewBox="0 0 24 24" aria-label="Add"><rect x="4" y="4" width="16" height="16" rx="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 8.5v7M8.5 12h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+/* Opened from the link Dad sent. On an iPhone, Yumi goes on the Home Screen first (that's where
+   notifications work and where it stays signed in), and opens there already holding the link. */
+function viewJoin() {
+  const j = S.ui.join, c = j.code;
+  if (j.install) return `<div class="screen"><div class="door">
+    ${lockup()}
+    <p class="t-b">Hi! ⭐ Let's put Yumi on your phone</p>
+    <ol class="installsteps">
+      <li><i>1</i><span>Tap <b>Share</b> ${SHARE_IC} at the bottom of Safari</span></li>
+      <li><i>2</i><span>Scroll down, tap <b>Add to Home Screen</b> ${ADD_IC}, then <b>Add</b></span></li>
+      <li><i>3</i><span>Open <b>Yumi</b> from your Home Screen</span></li>
+    </ol>
+    <div class="glass"><b>Your code from Dad</b><div class="code6">${esc(c.slice(0, 3))}&nbsp;${esc(c.slice(3))}</div><small>If Yumi asks for a code, type this one. It works once.</small></div>
+    <button class="linkish" data-act="joinHere">Skip and use Yumi in Safari</button>
+  </div></div>`;
+  return `<div class="screen"><div class="door">
+    ${lockup()}
+    ${j.err ? `<p class="t-b">That link didn't work</p><p class="lead">${esc(j.err)}</p><button class="btn solid wide" style="max-width:420px" data-act="joinDone">OK</button>`
+      : `<p class="t-b">Opening your Yumi…</p><span class="splash-star" aria-hidden="true">★</span>`}
+  </div></div>`;
+}
+async function joinClaim() {
+  const j = S.ui.join; if (!j) return;
+  j.install = false; j.err = null; S.render(true);
+  const r = await api('/pair/claim', { code: j.code });
+  if (!r.ok) {
+    j.err = r.error === 'locked' ? 'Too many tries. Wait a few minutes, then tap the link again.' : r.error === 'offline' ? "Can't reach Yumi. Check the internet, then tap the link again." : "It's been used already or it's too old. Ask Dad to send you a new one.";
+    Snd.err(); S.render(true); return;
+  }
+  history.replaceState(null, '', '/');
+  Snd.fanfare(); S.ui.join = null;
+  await S.reboot({ intro: true });
+}
+S.joinStart = () => { if (isIOS && !standalone()) { S.ui.join.install = true; S.render(true); } else joinClaim(); };
+
 function viewPair() {
   return `<div class="screen"><div class="door">
     ${lockup()}
     <p class="t-b">Add this phone</p>
-    <p class="lead">Type the code Dad made for you. It works once, for 10 minutes.</p>
+    <p class="lead">Type the code Dad made for you. It works once.</p>
     <div class="glass" style="gap:10px">
       <div class="codebox"><input id="pairIn" type="text" autocapitalize="characters" autocomplete="one-time-code" maxlength="7" placeholder="ABC 123" aria-label="Code from Dad"></div>
       <button class="btn solid wide" data-act="pairGo">Come in</button>
@@ -67,7 +106,7 @@ function viewPair() {
 function viewPin() {
   const pn = S.ui.pin, p = pn.who ? P(pn.who) : null;
   return `<div class="screen"><div class="door"><div class="pin">
-    ${p ? `<span class="face">${p.art?.head ? `<img src="/art/${esc(p.art.head)}" alt="">` : ''}</span><p class="t-b">${p.role === 'parent' ? `${esc(p.nick || p.name)} mode` : `Hi ${esc(p.name)}!`}</p>` : `${lockup()}<p class="t-b">Grown-up sign in</p>`}
+    ${p ? `<span class="face">${picOf(p.id) ? `<img src="${esc(picOf(p.id))}" alt="">` : ''}</span><p class="t-b">${p.role === 'parent' ? `${esc(p.nick || p.name)} mode` : `Hi ${esc(p.name)}!`}</p>` : `${lockup()}<p class="t-b">Grown-up sign in</p>`}
     <p class="handnote" style="color:var(--ink2)">Type your secret code</p>
     ${keypad(pn.len, pn.buf)}
     <p class="status ${pn.err ? 'err' : ''}" id="pinSt">${esc(pn.msg || '')}</p>
@@ -79,7 +118,7 @@ function viewPin() {
 function viewChoose() {
   const c = S.ui.choose, me = P(S.me.id);
   return `<div class="screen"><div class="door"><div class="pin">
-    <span class="face">${me?.art?.head ? `<img src="/art/${esc(me.art.head)}" alt="">` : ''}</span>
+    <span class="face">${picOf(S.me.id) ? `<img src="${esc(picOf(S.me.id))}" alt="">` : ''}</span>
     <p class="t-b">This phone is for ${esc(me?.name || S.me.name)} ♡</p>
     <p class="handnote" style="color:var(--ink2)">${c.first ? 'Type it one more time' : 'Pick your own 4-number secret code'}</p>
     ${keypad(4, c.buf)}
@@ -149,6 +188,8 @@ export const DOOR_ACTIONS = {
     if (p.role === 'kid' && !p.hasCode) { S.ui.pair = { msg: `${p.name} needs a code from Dad to add this phone.` }; S.render(); return; }
     S.ui.pin = { who: p.id, len: p.role === 'parent' ? 6 : 4, buf: '' }; S.render();
   },
+  joinHere() { Snd.tap(); joinClaim(); },
+  joinDone() { S.ui.join = null; history.replaceState(null, '', '/'); S.reboot(); },
   parentPin() { Snd.tap(); S.ui.pin = { who: null, len: 6, buf: '' }; S.render(); },
   pairOpen() { Snd.tap(); S.ui.pair = {}; S.render(); setTimeout(() => document.getElementById('pairIn')?.focus(), 50); },
   doorBack() { Snd.tap(); S.ui.pin = null; S.ui.pair = null; S.render(); },
@@ -158,7 +199,7 @@ export const DOOR_ACTIONS = {
     if (code.length !== 6) { st.textContent = 'The code has 6 letters and numbers.'; st.className = 'status err'; Snd.err(); return; }
     st.textContent = 'Checking…'; st.className = 'status';
     const r = await api('/pair/claim', { code });
-    if (!r.ok) { st.textContent = r.error === 'locked' ? 'Too many tries. Wait a few minutes.' : r.error === 'offline' ? "Can't reach Yumi. Check the internet." : "That code didn't work. Codes last 10 minutes, so ask Dad for a fresh one."; st.className = 'status err'; Snd.err(); return; }
+    if (!r.ok) { st.textContent = r.error === 'locked' ? 'Too many tries. Wait a few minutes.' : r.error === 'offline' ? "Can't reach Yumi. Check the internet." : "That code didn't work. Ask Dad for a fresh one."; st.className = 'status err'; Snd.err(); return; }
     Snd.fanfare(); S.ui.pair = null;
     await S.reboot({ intro: true });
   },

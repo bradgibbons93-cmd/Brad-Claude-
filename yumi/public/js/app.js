@@ -3,7 +3,10 @@ import { $, api, Store, Snd, toast, closeSheet, sheetOpen } from './core.js';
 import { S, P, isKid, isParent, accentOf, ACCENT_SOFT, buddyOf } from './model.js';
 import { viewDoor, DOOR_ACTIONS } from './door.js';
 import { viewApp } from './views.js';
-import { ROOM_ACTIONS, FAMILY_ACTIONS, DAD_ACTIONS, EXTRA_ACTIONS } from './actions.js';
+import { ROOM_ACTIONS, FAMILY_ACTIONS, DAD_ACTIONS, EXTRA_ACTIONS, MORE_ACTIONS } from './actions.js';
+import { swReady, pushSync, refreshPush } from './push.js';
+
+const TABS = ['home', 'routines', 'rewards', 'family', 'me'];
 
 let pending = false, deferred = false;
 S.render = (force) => {
@@ -29,6 +32,8 @@ document.addEventListener('focusout', () => { if (deferred) setTimeout(() => S.r
 /* (Re)loads who is signed in and starts live sync. */
 S.reboot = async (opts = {}) => {
   const qs = new URLSearchParams(location.search), setup = qs.get('setup');
+  const join = (qs.get('join') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const goTab = TABS.includes(qs.get('tab')) ? qs.get('tab') : null, goSub = qs.get('sub');
   const r = await api('/boot' + (setup ? '?setup=' + encodeURIComponent(setup) : ''));
   if (!r.ok && r.error === 'offline') {
     $('#app').innerHTML = `<div class="screen dark"><div class="door"><div class="lockup"><span class="word"><i>★</i>yumi</span></div><p class="t-b">Can't reach Yumi</p><p class="lead">Check the internet, then try again.</p><button class="btn solid" data-act="retry">Try again</button></div></div>`;
@@ -38,10 +43,19 @@ S.reboot = async (opts = {}) => {
   if (!opts.keep) S.ui = {};
   if (setup && r.setupNeeded && r.setupOk) { S.ui.setup = { token: setup, step: 'names' }; S.mode = 'door'; Store.stop(); S.render(true); return; }
   if (setup && !r.setupNeeded) history.replaceState(null, '', '/');
+  /* A "join" link from Dad: add this phone for her (on an iPhone, once it's on the Home Screen). */
+  if (join.length === 6 && !S.me) {
+    document.querySelector('link[rel=manifest]')?.setAttribute('href', '/manifest.webmanifest?join=' + join);
+    Store.stop(); S.mode = 'door'; S.ui.join = { code: join }; S.render(true);
+    S.joinStart?.();
+    return;
+  }
+  if (join || goTab || goSub) history.replaceState(null, '', '/');
   if (!S.me) { Store.stop(); S.mode = 'door'; S.render(true); return; }
   if (isKid() && !S.me.hasCode) { S.ui.choose = { buf: '', first: '' }; S.mode = 'door'; Store.stop(); S.render(true); return; }
-  if (!opts.keep) { S.mode = 'app'; S.tab = 'home'; S.sub = null; }
+  if (!opts.keep) { S.mode = 'app'; S.tab = goTab || 'home'; S.sub = goTab ? goSub : null; }
   try { await Store.start(); } catch (e) { if (e.message !== 'signed_out') toast("Couldn't load everything. Pull down to try again."); }
+  pushSync(); refreshPush();
   if (opts.intro && isKid() && !buddyOf(S.me.id)) { S.mode = 'app'; S.tab = 'me'; S.sub = 'mine'; S.ui.intro = true; }
   S.render(true);
 };
@@ -65,7 +79,7 @@ const NAV = {
   closeSheet() { closeSheet(); },
   pick(el) { el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el)); Snd.tick(); },
 };
-const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...NAV };
+const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...MORE_ACTIONS, ...NAV };
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]');
@@ -80,5 +94,13 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape' && sheetOpen(
 /* Pull data again when the day changes while the app stays open. */
 let day = new Date().toDateString();
 setInterval(() => { if (new Date().toDateString() !== day) { day = new Date().toDateString(); S.render(); } }, 60000);
+
+/* Tapping a notification while Yumi is open jumps to the right place. */
+swReady();
+navigator.serviceWorker?.addEventListener('message', e => {
+  const d = e.data || {};
+  if (d.type !== 'open' || S.mode !== 'app') return;
+  if (TABS.includes(d.tab)) { S.tab = d.tab; S.sub = d.sub || null; window.scrollTo({ top: 0 }); S.render(true); }
+});
 
 S.reboot();

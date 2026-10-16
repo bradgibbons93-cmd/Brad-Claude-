@@ -1,4 +1,5 @@
 import { gunzipSync } from "bun";
+import { join } from "node:path";
 import { sql, FAM, insertDocIfMissing, meta, setMeta, getDoc } from "./db";
 import { sha } from "./auth";
 
@@ -110,4 +111,30 @@ async function mergeCrewStars(log = console.log) {
   }
   await setMeta("crewstars:merged", JSON.stringify({ at: new Date().toISOString(), rows: rows.length, added }));
   log(`crew-stars: ${rows.length} rows checked, ${added} added`);
+}
+
+/* Family pictures ship in the repo only as an encrypted file (AES-256-GCM). The key lives in the
+   private ART_KEY variable on Railway, so the pictures can't be opened from GitHub. */
+export async function importArtBundle(log = console.log) {
+  const key = process.env.ART_KEY;
+  const file = Bun.file(join(import.meta.dir, "..", "assets", "family-art.bin"));
+  if (!key || !(await file.exists())) return;
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const hash = new Bun.CryptoHasher("sha256").update(buf).digest("hex").slice(0, 16);
+  if (await meta("art:" + hash)) return;
+  try {
+    const k = await crypto.subtle.importKey("raw", Buffer.from(key, "base64"), "AES-GCM", false, ["decrypt"]);
+    const plain = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: buf.slice(0, 12) }, k, buf.slice(12)));
+    const art: Record<string, string> = JSON.parse(new TextDecoder().decode(gunzipSync(plain)));
+    let n = 0;
+    for (const [k2, uri] of Object.entries(art)) {
+      const m = /^data:(image\/(?:webp|png|jpeg));base64,(.+)$/.exec(uri || "");
+      if (!m || !/^[a-z0-9_-]{1,40}$/.test(k2)) continue;
+      await sql`INSERT INTO y_art (fam, k, mime, bytes) VALUES (${FAM}, ${k2}, ${m[1]}, ${Buffer.from(m[2], "base64")})
+        ON CONFLICT (fam, k) DO UPDATE SET mime = EXCLUDED.mime, bytes = EXCLUDED.bytes`;
+      n++;
+    }
+    await setMeta("art:" + hash, new Date().toISOString());
+    log(`pictures: ${n} loaded`);
+  } catch (e) { log("pictures: could not open the picture file (check ART_KEY)", String(e)); }
 }

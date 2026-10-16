@@ -22,7 +22,7 @@ export function viewDoor() {
   if (!known) return viewWelcome();
   const ps = people();
   const t = today(), h = homeFor(t), nx = nextSwitch();
-  return `<div class="screen dark"><div class="door">
+  return `<div class="screen"><div class="door">
     ${lockup()}
     <p class="t-b" style="font-size:22px">Who's here?</p>
     <div class="who" style="--n:${Math.min(ps.length, 3)}">${ps.map(p => `<button class="pa" data-act="pickWho" data-who="${esc(p.id)}" style="--pc:${accentOf(p.id)}" aria-label="${esc(p.name)}">
@@ -30,13 +30,13 @@ export function viewDoor() {
       ${p.role === 'parent' ? `<small class="lk">🔒 ${esc(p.nick || 'Grown-up')}</small>` : `<small>★ ${Number(p.pub?.stars) || 0}</small>`}
       <b>${esc(p.name)}</b></button>`).join('')}</div>
     ${h !== 'unknown' ? `<div class="glass"><b>📅 Tonight: ${esc(homeName(h))}</b><small>${nx ? `${nx.home === 'dad' ? "Dad's" : nx.home === 'mum' ? "Mum's" : 'Swap'} in ${nx.sleeps} ${nx.sleeps === 1 ? 'sleep' : 'sleeps'}` : 'Same all fortnight'}</small></div>` : ''}
-    <p class="handnote" style="color:var(--on-dark2)">Tap your picture to come in</p>
+    <p class="handnote" style="color:var(--ink2)">Tap your picture to come in</p>
     <button class="linkish" data-act="pairOpen">Got a code from Dad for a new phone?</button>
   </div></div>`;
 }
 
 function viewWelcome() {
-  return `<div class="screen dark"><div class="door">
+  return `<div class="screen"><div class="door">
     ${lockup()}
     <p class="t-b">Welcome to Yumi</p>
     <p class="lead">Your family's stars, routines, week and messages, on your own phone.</p>
@@ -51,7 +51,7 @@ function viewWelcome() {
 }
 
 function viewPair() {
-  return `<div class="screen dark"><div class="door">
+  return `<div class="screen"><div class="door">
     ${lockup()}
     <p class="t-b">Add this phone</p>
     <p class="lead">Type the code Dad made for you. It works once, for 10 minutes.</p>
@@ -66,9 +66,9 @@ function viewPair() {
 
 function viewPin() {
   const pn = S.ui.pin, p = pn.who ? P(pn.who) : null;
-  return `<div class="screen dark"><div class="door"><div class="pin">
+  return `<div class="screen"><div class="door"><div class="pin">
     ${p ? `<span class="face">${p.art?.head ? `<img src="/art/${esc(p.art.head)}" alt="">` : ''}</span><p class="t-b">${p.role === 'parent' ? `${esc(p.nick || p.name)} mode` : `Hi ${esc(p.name)}!`}</p>` : `${lockup()}<p class="t-b">Grown-up sign in</p>`}
-    <p class="handnote" style="color:var(--on-dark2)">Type your secret code</p>
+    <p class="handnote" style="color:var(--ink2)">Type your secret code</p>
     ${keypad(pn.len, pn.buf)}
     <p class="status ${pn.err ? 'err' : ''}" id="pinSt">${esc(pn.msg || '')}</p>
     <span class="stay">🔓 You'll stay signed in on this phone until you tap Sign out.</span>
@@ -78,10 +78,10 @@ function viewPin() {
 
 function viewChoose() {
   const c = S.ui.choose, me = P(S.me.id);
-  return `<div class="screen dark"><div class="door"><div class="pin">
+  return `<div class="screen"><div class="door"><div class="pin">
     <span class="face">${me?.art?.head ? `<img src="/art/${esc(me.art.head)}" alt="">` : ''}</span>
     <p class="t-b">This phone is for ${esc(me?.name || S.me.name)} ♡</p>
-    <p class="handnote" style="color:var(--on-dark2)">${c.first ? 'Type it one more time' : 'Pick your own 4-number secret code'}</p>
+    <p class="handnote" style="color:var(--ink2)">${c.first ? 'Type it one more time' : 'Pick your own 4-number secret code'}</p>
     ${keypad(4, c.buf)}
     <p class="status ${c.err ? 'err' : ''}">${esc(c.msg || "Only you need to know it. You'll use it if you ever sign out.")}</p>
   </div></div></div>`;
@@ -90,7 +90,7 @@ function viewChoose() {
 function viewSetup() {
   const st = S.ui.setup, fresh = !people().some(p => p.role === 'parent');
   if (st.step === 'code') {
-    return `<div class="screen dark"><div class="door"><div class="pin">
+    return `<div class="screen"><div class="door"><div class="pin">
       ${lockup()}
       <p class="t-b">${st.first ? 'Type it again' : 'Make your 6-number grown-up code'}</p>
       <p class="lead">This code opens Dad mode. Keep it to yourself.</p>
@@ -98,7 +98,7 @@ function viewSetup() {
       <p class="status ${st.err ? 'err' : ''}">${esc(st.msg || '')}</p>
     </div></div></div>`;
   }
-  return `<div class="screen dark"><div class="door">
+  return `<div class="screen"><div class="door">
     ${lockup()}
     <p class="t-b">Set up Yumi</p>
     ${fresh ? `<div class="glass form" style="gap:10px">

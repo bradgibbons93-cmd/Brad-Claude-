@@ -3,7 +3,7 @@ import { sql, FAM, migrate, validPath, getDoc, putDoc, delDoc, changesSince, cur
 import * as auth from "./auth";
 import { readPath, canRead, checkWrite, type WriteOp } from "./rules";
 import { ACTIONS, afterWrite, refreshAll, DEFAULT_REWARDS, PAYDAY_STARS, PAYDAY_DOLLARS, STRIKES_PER_STAR, PRINCIPAL_AT } from "./stars";
-import { runImport, importFromBody } from "./importer";
+import { runImport, importFromBody, importArtBundle } from "./importer";
 
 const PORT = Number(process.env.PORT || 8080);
 const PUBLIC = join(import.meta.dir, "..", "public");
@@ -283,6 +283,7 @@ async function art(req: Request, key: string) {
 await migrate();
 await auth.ensureSetupToken();
 await runImport();
+await importArtBundle();
 await refreshAll();
 for (const p of await auth.people()) if (p.role === "kid") console.log(`jar ${p.id}: ${JSON.stringify(await getDoc("pub/" + p.id))}`);
 if (await auth.setupNeeded()) {

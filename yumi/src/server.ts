@@ -3,7 +3,7 @@ import { sql, FAM, migrate, validPath, getDoc, putDoc, delDoc, changesSince, cur
 import * as auth from "./auth";
 import { readPath, canRead, checkWrite, type WriteOp } from "./rules";
 import { ACTIONS, afterWrite, refreshAll, DEFAULT_REWARDS, PAYDAY_STARS, PAYDAY_DOLLARS, STRIKES_PER_STAR, PRINCIPAL_AT } from "./stars";
-import { runImport } from "./importer";
+import { runImport, importFromBody } from "./importer";
 
 const PORT = Number(process.env.PORT || 8080);
 const PUBLIC = join(import.meta.dir, "..", "public");
@@ -43,9 +43,9 @@ async function serveStatic(pathname: string) {
 }
 
 /* ---------- API ---------- */
-async function body(req: Request): Promise<any> {
+async function body(req: Request, max = 200_000): Promise<any> {
   const len = Number(req.headers.get("content-length") || 0);
-  if (len > 200_000) throw new Error("too_big");
+  if (len > max) throw new Error("too_big");
   try { return await req.json(); } catch { return {}; }
 }
 
@@ -174,6 +174,21 @@ async function api(req: Request, url: URL, server: any): Promise<Response> {
     const cookies = await auth.startSession(req, parent.id);
     await refreshAll();
     return json({ ok: true }, 200, withCookies(cookies));
+  }
+
+  /* One-time data move, locked with the setup token and only before the parent code exists. */
+  if (path === "/import" && req.method === "POST") {
+    const b = await body(req, 3_000_000);
+    const tok = await auth.setupToken();
+    if (!(await auth.setupNeeded())) return json({ ok: false, error: "already_set_up" }, 409);
+    if (!tok || typeof b.token !== "string" || auth.sha(b.token) !== auth.sha(tok)) return json({ ok: false, error: "bad_token" }, 403);
+    if (typeof b.payload !== "string" || !b.payload) return json({ ok: false, error: "no_payload" }, 400);
+    try {
+      const r = await importFromBody(b.payload);
+      await refreshAll();
+      const counts = await sql`SELECT (SELECT count(*) FROM y_people WHERE fam = ${FAM}) AS people, (SELECT count(*) FROM y_docs WHERE fam = ${FAM} AND NOT deleted) AS docs, (SELECT count(*) FROM y_art WHERE fam = ${FAM}) AS art`;
+      return json({ ok: true, ...r, people: Number(counts[0].people), docs: Number(counts[0].docs), art: Number(counts[0].art) });
+    } catch (e) { console.error("import", e); return json({ ok: false, error: "bad_payload" }, 400); }
   }
 
   if (path === "/login" && req.method === "POST") {

@@ -46,7 +46,8 @@ bun test test/unit
    - `SETUP_TOKEN` = a long random string (used once to make the parent code)
    - Optional, once: `YUMI_IMPORT` (and `YUMI_IMPORT_2`, `_3`…) holding a gzipped, base64 JSON
      export of existing family data. It only fills empty spots and runs once per payload.
-     Remove these variables after the first successful start.
+     Remove these variables after the first successful start. The same payload can instead be
+     sent to `POST /api/import` with `{ "token": SETUP_TOKEN, "payload": "..." }` before setup.
 3. Generate a domain, then open `https://<domain>/?setup=<SETUP_TOKEN>`.
 
 Family data, photos and pictures of the family never go in this repository. Pictures arrive

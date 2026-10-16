@@ -24,6 +24,17 @@ function readVar(): string | null {
   return parts.join("").replace(/\s+/g, "");
 }
 
+/* Reads a payload sent straight to the server (gzipped JSON in base64, or plain JSON). */
+export async function importFromBody(raw: string, log = console.log) {
+  const text = raw.trim().startsWith("{") ? raw : new TextDecoder().decode(gunzipSync(Buffer.from(raw.replace(/\s+/g, ""), "base64")));
+  const hash = sha(text).slice(0, 16);
+  if (await meta("import:" + hash)) return { hash, already: true };
+  await applyPayload(JSON.parse(text), log);
+  await setMeta("import:" + hash, new Date().toISOString());
+  await mergeCrewStars(log);
+  return { hash, already: false };
+}
+
 export async function runImport(log = console.log) {
   const raw = readVar();
   if (raw) {

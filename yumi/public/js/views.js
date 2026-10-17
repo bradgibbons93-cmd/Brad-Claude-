@@ -3,7 +3,7 @@
 import { esc, Store, today, ymd, parseYmd, addDays, startOfWeek, DOW, DOWL, MON, MONL, ago, byAtDesc, fmtShort, fmtTime, Snd } from './core.js';
 import { S, P, people, kids, avatar, short, nick, famName, BUDDIES, THEMES, ACCENTS, MOODS, HARD_MOODS, FOODS, SLOTS, JOURNAL_PROMPTS, COVERS, PLAN_COLORS,
   IDEA_FILTERS, homeFor, homeName, nextSwitch, roster, places, placeOf, rhythm, routineOf, dayOf, routineStats, moodToday, starsOf, strikesOf,
-  streakSet, rewardsList, ideasList, jobsFor, doneBy, rules, weekDays, isParent, isKid, buddyOf, buddyImg } from './model.js';
+  streakSet, rewardsList, TRAIL_REWARDS, ideasList, jobsFor, doneBy, rules, weekDays, isParent, isKid, buddyOf, buddyImg } from './model.js';
 import { isIOS } from './push.js';
 
 const hasArt = k => (S.boot?.art || []).includes(k);
@@ -248,11 +248,13 @@ function jarCard(k) {
     <div class="bar"><i style="width:${pct}%"></i></div>
     <div class="goal"><span>${R.paydayStars - n} more to go</span><span>💵 ${R.paydayStars} ★ = $${R.paydayDollars}</span></div></div>`;
 }
+/* Each treat on the trail can be tapped and bought. The last stop is the $100 payday. */
 function trailCard(k) {
-  const n = starsOf(k), marks = [[10, '🍦'], [25, '🎬'], [50, '🎁'], [75, '🏕️'], [100, '💵']];
-  const next = marks.find(([v]) => n < v);
+  const n = starsOf(k), R = rules(), marks = [...TRAIL_REWARDS.map(r => [r.cost, r.e, r.id]), [R.paydayStars, '💵', 'payday']];
+  const next = marks.find(([v]) => n < v), mine = S.me.id === k;
   return `<section class="card"><div class="ch"><span class="badge b-gold">🗺️</span><h3>Star trail</h3><em>${next ? `${next[0] - n} to ${next[1]}` : 'Payday!'}</em></div>
-    <div class="trail">${marks.map(([v, e]) => `<span class="${n >= v ? 'hit' : ''}"><i>${e}</i>${v}</span>`).join('')}</div></section>`;
+    <div class="trail">${marks.map(([v, e, id]) => `<button class="${n >= v ? 'hit' : ''}" data-act="rewardOpen" data-id="${id}" ${mine ? '' : 'disabled'} aria-label="${v} stars">${n >= v && id !== 'payday' && mine ? '<em>Get it!</em>' : ''}<i>${e}</i>${v}</button>`).join('')}</div>
+    ${mine ? '<p class="note" style="text-align:center">Tap a treat to get it</p>' : ''}</section>`;
 }
 function paydayCards(k, asDad) {
   const list = Store.col(`kids/${k}/payday`).sort(byAtDesc);
@@ -281,9 +283,9 @@ function shopCard(k) {
   return `<section class="card"><div class="ch"><span class="badge b-pink">🎁</span><h3>Spend or save?</h3></div>
     ${pending.map(r => `<div class="ticket"><span class="e">${esc(r.emoji)}</span><span class="grow"><b>${esc(r.title)}</b><small>Waiting for Dad · ${ago(r.at)}</small></span></div>`).join('')}
     ${done.map(r => `<div class="ticket" style="background:var(--good-soft)"><span class="e">${esc(r.emoji)}</span><span class="grow"><b>${esc(r.title)}</b><small style="color:#0F6B44">Done ✓</small></span></div>`).join('')}
-    <div class="rewards">${rewardsList().map(r => { const can = n >= r.cost, conf = S.ui.confirm === r.id;
-      return `<div class="reward"><span class="re">${esc(r.e)}</span><b>${esc(r.t)}</b><p>${esc(r.d)}</p><div class="rf"><span class="cost">★ ${r.cost}</span>
-      ${conf ? `<button class="btn solid small" data-act="redeemYes" data-id="${esc(r.id)}">Spend ${r.cost}</button>` : `<button class="btn small" data-act="redeem" data-id="${esc(r.id)}" ${can ? '' : 'disabled'}>${can ? 'Get it' : `${r.cost - n} more`}</button>`}</div></div>`; }).join('')}</div>
+    <div class="rewards">${rewardsList().map(r => { const can = n >= r.cost;
+      return `<button class="reward ${can ? 'can' : ''}" data-act="rewardOpen" data-id="${esc(r.id)}"><span class="re">${esc(r.e)}</span><b>${esc(r.t)}</b><p>${esc(r.d)}</p><span class="rf"><span class="cost">★ ${r.cost}</span>
+      <span class="get">${can ? 'Get it' : `${r.cost - n} more`}</span></span></button>`; }).join('')}</div>
     <p class="note">Stars you spend come out of your jar, so your $${rules().paydayDollars} takes a bit longer.</p></section>`;
 }
 

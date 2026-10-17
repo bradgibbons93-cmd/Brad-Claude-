@@ -25,6 +25,14 @@ export const DEFAULT_REWARDS = [
   { id: "sleepover", e: "🏕️", t: "Friend sleepover", d: "Invite a friend over. Dad sorts it.", cost: 25 },
 ];
 
+/* The treats on the star trail. They're rewards like the others: tap, spend, Dad gets told. */
+export const TRAIL_REWARDS = [
+  { id: "icecream", e: "🍦", t: "Ice cream trip", d: "Dad takes you out for an ice cream.", cost: 10 },
+  { id: "cinema", e: "🎬", t: "Movies at the cinema", d: "A trip to the cinema, popcorn included.", cost: 25 },
+  { id: "present", e: "🎁", t: "A surprise present", d: "Dad picks a surprise just for you.", cost: 50 },
+  { id: "adventure", e: "🏕️", t: "Big adventure day", d: "A whole day out. You pick the adventure.", cost: 75 },
+];
+
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const iso = () => new Date().toISOString();
 const ordinal = (n: number) => n + (n % 100 >= 11 && n % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][n % 10] || "th");
@@ -297,7 +305,7 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
 
   async redeem(me, b) {
     if (me.role !== "kid") return fail("kids_only");
-    const list = (await getDoc("settings/rewards"))?.items || DEFAULT_REWARDS;
+    const list = [...((await getDoc("settings/rewards"))?.items || DEFAULT_REWARDS), ...TRAIL_REWARDS];
     const r = list.find((x: any) => x.id === b.reward);
     if (!r) return fail("no_reward");
     return locked("kid:" + me.id, async () => {

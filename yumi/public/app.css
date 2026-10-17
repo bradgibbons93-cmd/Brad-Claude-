@@ -231,9 +231,12 @@ textarea.hand{font:400 22px/1.3 var(--hand)}
 .jar .bar i{background:linear-gradient(90deg,#FF7EAB,#EC3D7C)}
 .jar .goal{display:flex;justify-content:space-between;font:700 14px/1.2 var(--f)}
 .trail{display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px}
-.trail span{display:flex;flex-direction:column;align-items:center;gap:3px;font:700 12px/1 var(--f);color:var(--ink2)}
-.trail span i{font-style:normal;width:46px;height:46px;border-radius:50%;background:#F3EEF6;display:grid;place-items:center;font-size:24px;filter:grayscale(.8);opacity:.6}
-.trail span.hit i{background:var(--sun-soft);filter:none;opacity:1;box-shadow:0 0 0 3px var(--gold)}
+.trail button{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;font:700 12px/1 var(--f);color:var(--ink2);padding:18px 0 0}
+.trail button:disabled{opacity:1;cursor:default}
+.trail button i{font-style:normal;width:50px;height:50px;border-radius:50%;background:#F3EEF6;display:grid;place-items:center;font-size:26px;filter:grayscale(.6);opacity:.75}
+.trail button.hit i{background:var(--sun-soft);filter:none;opacity:1;box-shadow:0 0 0 3px var(--gold)}
+.trail button em{position:absolute;top:0;font:700 10.5px/1 var(--f);font-style:normal;color:#fff;background:var(--accent);border-radius:999px;padding:3px 6px;white-space:nowrap;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.08)}}
 .payday{display:flex;align-items:center;gap:12px;background:var(--good-soft);border:3px solid var(--good);border-radius:22px;padding:14px}
 .payday .e{font-size:36px}
 .payday b{display:block;font:700 18px/1.15 var(--f);color:#0F6B44}
@@ -253,7 +256,10 @@ textarea.hand{font:400 22px/1.3 var(--hand)}
 .logrow .li.c{background:var(--good-soft);color:var(--good)}
 .logrow time{margin-left:auto;font:500 12.5px/1 var(--f);color:var(--ink2);white-space:nowrap}
 .rewards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.reward{background:#fff;border-radius:22px;padding:14px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow)}
+.reward{background:#fff;border-radius:22px;padding:14px;display:flex;flex-direction:column;align-items:stretch;gap:6px;box-shadow:var(--shadow);text-align:left;color:var(--ink);font:inherit}
+.reward.can{box-shadow:var(--shadow),0 0 0 3px var(--gold) inset}
+.reward .get{font:700 14px/1 var(--f);padding:9px 14px;border-radius:999px;background:#F3EEF6;color:var(--ink2)}
+.reward.can .get{background:var(--accent);color:#fff}
 .reward .re{font-size:40px;line-height:1}
 .reward b{font:700 16px/1.2 var(--f)}
 .reward p{font:500 13px/1.3 var(--f);color:var(--ink2);flex:1}
@@ -523,3 +529,12 @@ body.t-glass{background:radial-gradient(90% 40% at 100% 0%,rgba(139,91,230,.25),
 .installsteps li>i{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font:700 16px/1 var(--f);font-style:normal}
 .ios-ic{width:22px;height:22px;vertical-align:-5px;color:#2A86DD;display:inline-block}
 .sheet .installsteps li{box-shadow:0 0 0 2px var(--line) inset}
+
+/* the "get it" sheet */
+.rsheet{display:grid;gap:12px;text-align:center;justify-items:center}
+.rsheet .re{font-size:72px;line-height:1;margin-top:4px}
+.rsheet h2{margin:0}
+.rmath{display:flex;gap:8px;width:100%}
+.rmath span{flex:1;background:var(--sun-soft);border-radius:18px;padding:10px 6px;display:grid;gap:4px;font:600 13px/1 var(--f);color:#7A5300}
+.rmath b{font:700 24px/1 var(--f);color:#3D2800}
+.btn.big{min-height:60px;font-size:19px}

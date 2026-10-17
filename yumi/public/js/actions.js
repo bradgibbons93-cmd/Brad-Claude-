@@ -1,7 +1,7 @@
 /* Everything a tap can do. Views live in views.js. */
 import { $, esc, Store, api, today, ymd, parseYmd, addDays, DOW, uid, nowIso, ordinal, ago, fmtShort, Snd, Confetti, toast, openSheet, closeSheet, pickRow, picked, act, queued, write, setDoc, mergeDoc, delDoc } from './core.js';
 import { S, P, people, kids, avatar, short, nick, MOODS, STAR_REASONS, STRIKE_REASONS, EVENT_EMOJI, STARTER_ROUTINE, JOURNAL_PROMPTS, STICKERS, WISH_EMOJI, COVERS, PLAN_COLORS,
-  homeFor, places, roster, routineOf, dayOf, strikesOf, rules, ideasList, isParent, isKid } from './model.js';
+  homeFor, places, roster, routineOf, dayOf, strikesOf, starsOf, rules, ideasList, isParent, isKid, rewardById } from './model.js';
 import { isIOS, standalone, pushStatus, turnOn, turnOff } from './push.js';
 
 const kidOf = el => el?.dataset?.k || S.me.id;
@@ -59,11 +59,30 @@ export const ROOM_ACTIONS = {
   async pickPlace(el) { await savePick(el.dataset.d, { place: el.dataset.v }, 'place'); },
   async pickFood(el) { await savePick(el.dataset.d, { food: el.dataset.v }, 'food'); },
   async saveWeekNote(el) { const v = (document.getElementById('weekNote')?.value || '').trim().slice(0, 200); await savePick(el.dataset.d, { note: v }, 'note'); toast('Note saved'); },
-  async redeem(el) { S.ui.confirm = el.dataset.id; Snd.tap(); S.render(); setTimeout(() => { if (S.ui.confirm === el.dataset.id) { S.ui.confirm = null; S.render(); } }, 5000); },
-  async redeemYes(el) {
-    S.ui.confirm = null; const r = await act('redeem', { reward: el.dataset.id });
-    if (!r.ok) { toast(r.error === 'not_enough' ? 'Not enough stars yet' : "That didn't work. Try again."); Snd.err(); S.render(); return; }
-    Snd.magic(); Confetti.from(el, 60); toast('Ticket sent to Dad!');
+  /* Tap a treat: see what it costs, what's left after, and get it. */
+  rewardOpen(el) {
+    const R = rules(), n = starsOf(S.me.id);
+    if (el.dataset.id === 'payday') {
+      Snd.tap();
+      openSheet(`<div class="rsheet"><span class="re">💵</span><h2 id="sheetTitle">$${R.paydayDollars} payday</h2><p class="lead">Fill your jar to ${R.paydayStars} stars and Dad pays you $${R.paydayDollars}. It happens by itself, no need to tap anything.</p>
+        <div class="rmath"><span>In your jar<b>${n} ★</b></span><span>To go<b>${Math.max(0, R.paydayStars - n)} ★</b></span></div>
+        <button class="btn wide" data-act="closeSheet">Keep saving</button></div>`);
+      return;
+    }
+    const r = rewardById(el.dataset.id); if (!r) return;
+    const can = n >= r.cost; Snd.pop();
+    openSheet(`<div class="rsheet"><span class="re">${esc(r.e)}</span><h2 id="sheetTitle">${esc(r.t)}</h2><p class="lead">${esc(r.d)}</p>
+      <div class="rmath"><span>Costs<b>${r.cost} ★</b></span><span>You have<b>${n} ★</b></span><span>${can ? 'Left after' : 'To go'}<b>${can ? n - r.cost : r.cost - n} ★</b></span></div>
+      ${can ? `<button class="btn solid wide big" data-act="rewardGet" data-id="${esc(r.id)}">Get it! Spend ${r.cost} ★</button><p class="note" style="text-align:center">Dad gets a message straight away.</p>`
+        : `<button class="btn wide" disabled>${r.cost - n} more ${r.cost - n === 1 ? 'star' : 'stars'} to go</button><p class="note" style="text-align:center">Keep going, you're getting there! ⭐</p>`}
+      <button class="btn wide" data-act="closeSheet">${can ? 'Save my stars' : 'OK'}</button></div>`);
+  },
+  async rewardGet(el) {
+    if (el.disabled) return; el.disabled = true; el.textContent = 'Sending to Dad…';
+    const r = await act('redeem', { reward: el.dataset.id });
+    if (!r.ok) { el.disabled = false; toast(r.error === 'not_enough' ? 'Not enough stars yet' : "That didn't work. Try again."); Snd.err(); return; }
+    closeSheet(); Snd.fanfare(); Confetti.burst(innerWidth / 2, innerHeight / 3, 120);
+    toast(`Sent to Dad! 🎉 ${r.stars} ★ left in your jar`);
   },
   journalNew() {
     const prompt = JOURNAL_PROMPTS[new Date().getDate() % JOURNAL_PROMPTS.length];

@@ -157,6 +157,13 @@ export function cycleOf(k) {
 export function strikesOf(k) { return Number(P(k)?.pub?.strikes) || 0; }
 export function streakSet(k) { return new Set(Store.col(`kids/${k}/days`).filter(d => d.starred).map(d => d.id)); }
 export const rewardsList = () => Store.get('settings/rewards')?.items || DEFAULT_REWARDS;
+export const TRAIL_REWARDS = [
+  { id: 'icecream', e: '🍦', t: 'Ice cream trip', d: 'Dad takes you out for an ice cream.', cost: 10 },
+  { id: 'cinema', e: '🎬', t: 'Movies at the cinema', d: 'A trip to the cinema, popcorn included.', cost: 25 },
+  { id: 'present', e: '🎁', t: 'A surprise present', d: 'Dad picks a surprise just for you.', cost: 50 },
+  { id: 'adventure', e: '🏕️', t: 'Big adventure day', d: 'A whole day out. You pick the adventure.', cost: 75 },
+];
+export const rewardById = id => [...rewardsList(), ...TRAIL_REWARDS].find(r => r.id === id) || null;
 export const ideasList = () => Store.get('settings/ideas')?.items || DEFAULT_IDEAS;
 
 /* ---------- family jobs ---------- */

@@ -3,7 +3,7 @@
 import { esc, Store, today, ymd, parseYmd, addDays, startOfWeek, DOW, DOWL, MON, MONL, ago, byAtDesc, fmtShort, fmtTime, Snd } from './core.js';
 import { S, P, people, kids, avatar, short, nick, famName, BUDDIES, THEMES, ACCENTS, MOODS, HARD_MOODS, FOODS, SLOTS, JOURNAL_PROMPTS, COVERS, PLAN_COLORS,
   IDEA_FILTERS, homeFor, homeName, nextSwitch, roster, places, placeOf, rhythm, routineOf, dayOf, routineStats, moodToday, starsOf, strikesOf,
-  streakSet, rewardsList, TRAIL_REWARDS, ideasList, jobsFor, doneBy, rules, weekDays, isParent, isKid, buddyOf, buddyImg } from './model.js';
+  streakSet, rewardsList, TRAIL_REWARDS, ideasList, jobsFor, doneBy, jobPending, rules, weekDays, isParent, isKid, buddyOf, buddyImg } from './model.js';
 import { isIOS } from './push.js';
 
 const hasArt = k => (S.boot?.art || []).includes(k);
@@ -75,7 +75,17 @@ function routineCard(k, { big = false, title = "Today's Routine" } = {}) {
     ${editing ? items.map(r => `<div class="stepedit"><span style="font-size:22px">${esc(r.e || '•')}</span><span class="grow">${esc(r.t)}</span><button class="x-btn" data-act="stepDel" data-k="${esc(k)}" data-id="${esc(r.id)}" aria-label="Remove ${esc(r.t)}">🗑️</button></div>`).join('') +
       `<div class="row"><input type="text" id="newStep" maxlength="60" placeholder="Add a step"><button class="btn solid small" data-act="stepAdd" data-k="${esc(k)}" data-slot="${slot}">Add</button></div>`
       : items.map(r => itemRow(k, r, done.has(r.id))).join('') || '<div class="empty">Nothing here. Tap Edit to add a step.</div>'}
-    <p class="goalline">${rs.done === rs.total ? '🎉 All done today! +1 ★ in the jar' : `Finish all ${rs.total} for <b>+1 ★</b> · ${rs.total - rs.done} to go`}</p></section>`;
+    ${routineGoal(k, rs)}</section>`;
+}
+/* The bottom line of a routine: how many to go, waiting for Dad, or the star. Dad can check it right there. */
+function routineGoal(k, rs) {
+  const day = dayOf(k), d = today(), name = esc(P(k)?.nick || P(k)?.name || '');
+  if (rs.done < rs.total) return `<p class="goalline">${day.declined ? 'Dad says not yet. ' : ''}Finish all ${rs.total} for <b>+1 ★</b> · ${rs.total - rs.done} to go</p>`;
+  if (day.starred) return `<p class="goalline good">⭐ ${isParent() ? 'Checked. +1 ★ in her jar' : 'Dad said yes! +1 ★ in your jar'}</p>`;
+  if (day.pending) return isParent()
+    ? `<div class="goalline ask"><span>✅ ${name} says it's all done</span><span class="acts"><button class="btn good small" data-act="routineOk" data-k="${esc(k)}" data-d="${d}" data-ok="1">✓ Yes</button><button class="btn small" data-act="routineOk" data-k="${esc(k)}" data-d="${d}" data-ok="0">Not yet</button></span></div>`
+    : `<p class="goalline wait">⏳ All done! Waiting for Dad to check it</p>`;
+  return `<p class="goalline">${day.declined ? 'Dad says not yet. Untick what still needs doing, then tick it again.' : '🎉 All done today!'}</p>`;
 }
 
 function dadRoutineCard(big = false) {
@@ -205,10 +215,11 @@ export function taskRow(tk) {
   const when = tk.daily ? 'Every day' : tk.date ? (tk.date === t ? 'Today' : tk.date < t ? `Since ${fmtShort(tk.date)}` : fmtShort(tk.date)) : 'Any time';
   const forWho = !tk.who || tk.who === 'all' ? 'Everyone' : short(tk.who);
   const canTick = !tk.who || tk.who === 'all' || tk.who === S.me.id;
+  const waiting = mine && jobPending(tk, S.me.id);
   return `<div class="task ${mine ? 'done' : ''}">${canTick ? `<button class="tk" data-act="taskTick" data-id="${esc(tk.id)}" aria-pressed="${mine}" aria-label="${mine ? 'Untick' : 'Tick'} ${esc(tk.t)}">${mine ? '✓' : ''}</button>` : '<span class="tk" style="opacity:.3"></span>'}
     <span class="e">${esc(tk.e || '✅')}</span><span class="tt"><b>${esc(tk.t)}</b><small>${esc(forWho)} · ${when}</small></span>
     ${by.length ? `<span class="whos">${by.map(w => avatar(w)).join('')}</span>` : ''}
-    ${tk.stars ? `<span class="st">+${tk.stars} ★</span>` : ''}
+    ${tk.stars ? `<span class="st">${waiting ? '⏳ Dad' : `+${tk.stars} ★`}</span>` : ''}
     ${isParent() || tk.by === S.me.id ? `<button class="x-btn" data-act="taskDel" data-id="${esc(tk.id)}" aria-label="Delete ${esc(tk.t)}">✕</button>` : ''}</div>`;
 }
 
@@ -221,7 +232,7 @@ function jobsCard() {
     <div class="chips">${[['all', 'Everyone'], ...people().map(p => [p.id, short(p.id)])].map(([k, l]) => `<button class="${f === k ? 'on' : ''}" data-act="jobWho" data-w="${esc(k)}">${esc(l)}</button>`).join('')}</div>
     ${now.length ? now.map(taskRow).join('') : `<div class="empty">No jobs yet.${isParent() ? '<br><br><button class="btn solid" data-act="starterJobs">Add starter jobs</button>' : ''}</div>`}
     ${later.length ? `<p class="sec-title">Coming up</p>${later.map(taskRow).join('')}` : ''}
-    <p class="note">${isKid() ? 'Tick a job when it\'s done. The stars go straight in your jar.' : 'Daily jobs reset every morning. You set the stars.'}</p></section>`;
+    <p class="note">${isKid() ? 'Tick a job when it\'s done. Dad checks it, then the stars go in your jar.' : 'Daily jobs reset every morning. You set the stars and check each one before they go in.'}</p></section>`;
 }
 
 function kidChips(withMe = false) {
@@ -554,7 +565,12 @@ export function waitingItems() {
   const items = [];
   for (const k of kids()) {
     for (const p of Store.col(`kids/${k.id}/payday`).filter(x => x.status !== 'paid')) items.push({ at: p.at, html: `<div class="wait goodbg"><span class="e">💵</span><span class="tt"><b>${esc(k.name)} filled her jar! Pay her $${p.amount}</b><small>100 stars · ${ago(p.at)}</small></span><button class="btn good small" data-act="paid" data-k="${esc(k.id)}" data-id="${esc(p.id)}">Paid</button></div>` });
+    for (const d of Store.col(`kids/${k.id}/days`).filter(x => x.pending)) items.push({ at: d.askedAt || d.date, html: `<div class="wait"><span class="e">✅</span><span class="tt"><b>${esc(k.name)} finished her routine</b><small>${d.id === today() ? 'Today' : fmtShort(d.id)} · yes gives her +1 ★</small></span><span class="acts"><button class="btn good small" data-act="routineOk" data-k="${esc(k.id)}" data-d="${esc(d.id)}" data-ok="1">✓ Yes</button><button class="btn small" data-act="routineOk" data-k="${esc(k.id)}" data-d="${esc(d.id)}" data-ok="0">Not yet</button></span></div>` });
     for (const r of Store.col(`kids/${k.id}/redeemed`).filter(x => x.status === 'pending')) items.push({ at: r.at, html: `<div class="wait"><span class="e">${esc(r.emoji)}</span><span class="tt"><b>${esc(k.name)} bought "${esc(r.title)}"</b><small>★${r.cost} · ${ago(r.at)}</small></span><span class="acts"><button class="btn blue small" data-act="redSet" data-k="${esc(k.id)}" data-id="${esc(r.id)}" data-s="done">Done</button><button class="btn small" data-act="redSet" data-k="${esc(k.id)}" data-id="${esc(r.id)}" data-s="declined">Not now</button></span></div>` });
+  }
+  for (const d of Store.col('taskDone').filter(x => x.pending)) {
+    const tk = Store.get('tasks/' + d.task), k = P(d.who); if (!k) continue;
+    items.push({ at: d.at, html: `<div class="wait"><span class="e">${esc(tk?.e || '🧹')}</span><span class="tt"><b>${esc(k.name)} did "${esc(tk?.t || 'a job')}"</b><small>yes gives her +${Number(d.stars) || 1} ★ · ${ago(d.at)}</small></span><span class="acts"><button class="btn good small" data-act="jobOk" data-id="${esc(d.id)}" data-ok="1">✓ Yes</button><button class="btn small" data-act="jobOk" data-id="${esc(d.id)}" data-ok="0">Not yet</button></span></div>` });
   }
   for (const i of Store.col('inbox').filter(x => !x.seen && x.kind !== 'payday')) {
     const e = { strike: '⚠️', principal: '🏫', hug: '🤗', journal: '📓' }[i.kind] || '🔔';

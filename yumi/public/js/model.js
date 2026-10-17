@@ -169,6 +169,7 @@ export const ideasList = () => Store.get('settings/ideas')?.items || DEFAULT_IDE
 /* ---------- family jobs ---------- */
 export const doneKey = tk => tk.daily ? today() : 'once';
 export const doneBy = tk => { const k = doneKey(tk); return Store.col('taskDone').filter(d => d.task === tk.id && d.key === k).map(d => d.who); };
+export const jobPending = (tk, who) => { const k = doneKey(tk); return !!Store.col('taskDone').find(d => d.task === tk.id && d.key === k && d.who === who)?.pending; };
 export const jobsFor = who => Store.col('tasks').filter(tk => (who === 'all' || !tk.who || tk.who === 'all' || tk.who === who) && (tk.daily || !tk.date || tk.date <= today()))
   .sort((a, b) => (a.daily === b.daily ? 0 : a.daily ? -1 : 1) || String(a.at || '').localeCompare(String(b.at || '')));
 

@@ -538,3 +538,9 @@ body.t-glass{background:radial-gradient(90% 40% at 100% 0%,rgba(139,91,230,.25),
 .rmath span{flex:1;background:var(--sun-soft);border-radius:18px;padding:10px 6px;display:grid;gap:4px;font:600 13px/1 var(--f);color:#7A5300}
 .rmath b{font:700 24px/1 var(--f);color:#3D2800}
 .btn.big{min-height:60px;font-size:19px}
+
+/* waiting for Dad to check a routine */
+.goalline.wait{background:#EEF3FF;color:#2F58B8}
+.goalline.good{background:var(--good-soft);color:#0F6B44}
+.goalline.ask{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;background:#EEF3FF;color:#2F58B8;text-align:left}
+.goalline.ask .acts{display:flex;gap:6px}

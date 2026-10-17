@@ -8,7 +8,8 @@ import { notify, type PushMsg } from "./push";
    - From strike 10 the girl sees that her principal will be told, and Dad gets an alert.
      The app itself never contacts the school.
    - When the jar reaches 100 stars it's payday: $100 from Dad. The jar and the strikes start
-     again from zero (anything over 100 carries over). 100 is the most a jar can hold. */
+     again from zero (anything over 100 carries over). 100 is the most a jar can hold.
+   - A finished routine or a job worth stars waits for Dad to check it. The star goes in when he says yes. */
 
 export const PAYDAY_STARS = 100;
 export const PAYDAY_DOLLARS = 100;
@@ -245,20 +246,69 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
       want ? done.add(b.step) : done.delete(b.step);
       const full = ids.every(i => done.has(i));
       const next: any = { ...day, date: b.date, done: [...done] };
-      let gained = 0;
+      let gained = 0, asked = false;
       if (full && !day.starred && !day.undone) {
-        const lid = uid();
-        await putDoc(`kids/${k}/log/${lid}`, { type: "star", n: 1, reason: "Did my whole routine", auto: "routine", day: b.date, at: iso() }, me.id);
-        next.starred = true; next.starLog = lid; gained = 1;
-      } else if (!full && day.starred) {
-        if (day.starLog) await delDoc(`kids/${k}/log/${day.starLog}`, me.id);
-        next.starred = false; next.starLog = null; gained = -1;
+        if (me.role === "parent") {
+          /* Dad ticked it himself, so it's already checked. */
+          const lid = uid();
+          await putDoc(`kids/${k}/log/${lid}`, { type: "star", n: 1, reason: "Did my whole routine", auto: "routine", day: b.date, at: iso(), by: me.id }, me.id);
+          next.starred = true; next.starLog = lid; next.pending = false; gained = 1;
+        } else if (!day.pending) { next.pending = true; next.askedAt = iso(); next.declined = false; asked = true; }
+      } else if (!full) {
+        if (day.starred) {
+          if (day.starLog) await delDoc(`kids/${k}/log/${day.starLog}`, me.id);
+          next.starred = false; next.starLog = null; gained = -1;
+        }
+        if (day.pending) next.pending = false;
       }
       await putDoc(dp, next, me.id);
       const s = await refreshKid(k);
       if (gained) await refreshFamily();
-      if (gained === 1 && me.id === k) await pingParents({ title: `⭐ ${await nameOf(k)} did her whole routine!`, body: `+1 star · ${s.stars} in her jar`, tag: `routine-${k}`, url: "/?tab=home" });
-      return { ok: true, done: next.done, full, gained, stars: s.stars };
+      if (asked) await pingParents({ title: `✅ ${await nameOf(k)} finished her whole routine`, body: "Tap to check it. Say yes and she gets her star ⭐", tag: `routine-${k}`, url: "/?tab=home" });
+      return { ok: true, done: next.done, full, gained, asked, pending: !!next.pending, stars: s.stars };
+    });
+  },
+
+  /* Dad checks a finished routine: yes puts the star in, not yet sends her back to it. */
+  async routineApprove(me, b) {
+    if (me.role !== "parent") return fail("parent_only");
+    const k = b.kid;
+    if (!(await mustBeKid(k)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(b.date || ""))) return fail("bad_input");
+    return locked("kid:" + k, async () => {
+      const dp = `kids/${k}/days/${b.date}`, day = await getDoc(dp);
+      if (!day?.pending) return fail("gone");
+      if (b.ok) {
+        const lid = uid();
+        await putDoc(`kids/${k}/log/${lid}`, { type: "star", n: 1, reason: "Did my whole routine", auto: "routine", day: b.date, at: iso(), by: me.id }, me.id);
+        await putDoc(dp, { ...day, pending: false, declined: false, starred: true, starLog: lid, checkedAt: iso() }, me.id);
+        const s = await refreshKid(k); await refreshFamily();
+        ping([k], { title: `⭐ ${await nameOf(me.id)} checked your routine!`, body: `+1 star · ${s.stars} in your jar`, tag: "routine", url: "/?tab=rewards" });
+        return { ok: true, stars: s.stars };
+      }
+      await putDoc(dp, { ...day, pending: false, declined: true, checkedAt: iso() }, me.id);
+      ping([k], { title: "Not quite yet 🙂", body: `${await nameOf(me.id)} says your routine isn't finished. Untick what still needs doing, do it, then tick it again.`, tag: "routine", url: "/?tab=home" });
+      return { ok: true };
+    });
+  },
+
+  async jobApprove(me, b) {
+    if (me.role !== "parent") return fail("parent_only");
+    if (typeof b.id !== "string" || !/^[A-Za-z0-9_@~.-]{1,160}$/.test(b.id)) return fail("bad_input");
+    const path = "taskDone/" + b.id, d = await getDoc(path);
+    if (!d?.pending || !(await mustBeKid(d.who))) return fail("gone");
+    const tk = await getDoc("tasks/" + d.task), title = String(tk?.t || "a job").slice(0, 50);
+    return locked("kid:" + d.who, async () => {
+      if (b.ok) {
+        const n = Math.max(1, Math.min(5, Number(d.stars) || 1));
+        await putDoc(`kids/${d.who}/log/${uid()}`, { type: "star", n, reason: `Job: ${title}`, task: d.task, key: d.key, at: iso(), by: me.id }, me.id);
+        await putDoc(path, { ...d, pending: false, approved: true, checkedAt: iso() }, me.id);
+        const s = await refreshKid(d.who); await refreshFamily();
+        ping([d.who], { title: `⭐ ${await nameOf(me.id)} checked your job!`, body: `${title} · +${n} ★ · ${s.stars} in your jar`, tag: "job", url: "/?tab=rewards" });
+        return { ok: true, stars: s.stars };
+      }
+      await delDoc(path, me.id);
+      ping([d.who], { title: `Not quite yet: ${title}`, body: `${await nameOf(me.id)} says it isn't done yet. Have another go!`, tag: "job", url: "/?tab=routines" });
+      return { ok: true };
     });
   },
 
@@ -291,14 +341,11 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
         if (log) { await delDoc(log.path, me.id); await refreshKid(me.id); await refreshFamily(); }
         return { ok: true, done: false };
       }
-      await putDoc(path, { task: b.task, key, who: me.id, date: key, at: iso() }, me.id);
-      let stars = 0;
-      if (me.role === "kid" && Number(tk.stars) > 0 && !log) {
-        stars = Math.min(5, Number(tk.stars));
-        await putDoc(`kids/${me.id}/log/${uid()}`, { type: "star", n: stars, reason: `Job: ${String(tk.t || "").slice(0, 50)}`, task: b.task, key, at: iso() }, me.id);
-        await refreshKid(me.id); await refreshFamily();
-      }
-      return { ok: true, done: true, stars };
+      /* A job worth stars waits for Dad to check it; the stars go in when he says yes. */
+      const stars = me.role === "kid" && Number(tk.stars) > 0 && !log ? Math.min(5, Number(tk.stars)) : 0;
+      await putDoc(path, { task: b.task, key, who: me.id, date: key, at: iso(), ...(stars ? { pending: true, stars } : {}) }, me.id);
+      if (stars) await pingParents({ title: `🧹 ${await nameOf(me.id)} did a job: ${String(tk.t || "").slice(0, 40)}`, body: `Tap to check it. Say yes and she gets +${stars} ★`, tag: `job-${me.id}`, url: "/?tab=home" });
+      return { ok: true, done: true, stars: 0, pending: !!stars };
     };
     return me.role === "kid" ? locked("kid:" + me.id, run) : run();
   },

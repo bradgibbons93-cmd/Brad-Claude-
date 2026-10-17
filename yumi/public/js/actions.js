@@ -33,6 +33,7 @@ export const ROOM_ACTIONS = {
     Store.release(path);
     if (!r.ok) { toast("That tick didn't save. Try again."); Snd.err(); Store.kick(); return; }
     if (r.gained > 0) { setTimeout(() => { Snd.fanfare(); Confetti.burst(innerWidth / 2, innerHeight / 3, 140); toast('Whole routine done! +1 ★'); }, 150); }
+    else if (r.asked) { setTimeout(() => { Snd.fanfare(); Confetti.burst(innerWidth / 2, innerHeight / 3, 140); toast('Whole routine done! 🎉 Sent to Dad to check'); }, 150); }
     else if (!was) { const slot = routineOf(k).find(x => x.id === id)?.slot, ids = routineOf(k).filter(x => x.slot === slot).map(x => x.id); if (ids.every(x => r.done.includes(x))) { Confetti.from(el, 50); toast('That part is done!'); } }
   },
   async stepAdd(el) {
@@ -51,7 +52,21 @@ export const ROOM_ACTIONS = {
   async taskTick(el) {
     const id = el.dataset.id, r = await act('taskTick', { task: id, date: today() });
     if (!r.ok) { toast(r.error === 'not_your_job' ? 'That job is for someone else' : "That tick didn't save"); Snd.err(); return; }
-    if (r.done) { Confetti.from(el, 30); if (r.stars) { Snd.star(); toast(`+${r.stars} ★ in your jar`); } else Snd.check(); } else Snd.uncheck();
+    if (r.done) { Confetti.from(el, 30); Snd.check(); if (r.pending) toast('Nice! Sent to Dad to check ⭐'); } else Snd.uncheck();
+  },
+  async routineOk(el) {
+    const ok = el.dataset.ok === '1', who = short(el.dataset.k);
+    el.disabled = true;
+    const r = await act('routineApprove', { kid: el.dataset.k, date: el.dataset.d, ok });
+    if (!r.ok) { el.disabled = false; toast(r.error === 'gone' ? 'Already sorted' : "That didn't save"); return; }
+    if (ok) { Snd.star(); Confetti.from(el, 40); toast(`Star given to ${who} ⭐`); } else { Snd.tap(); toast(`Told ${who} not yet`); }
+  },
+  async jobOk(el) {
+    const ok = el.dataset.ok === '1';
+    el.disabled = true;
+    const r = await act('jobApprove', { id: el.dataset.id, ok });
+    if (!r.ok) { el.disabled = false; toast(r.error === 'gone' ? 'Already sorted' : "That didn't save"); return; }
+    if (ok) { Snd.star(); Confetti.from(el, 40); toast('Stars given ⭐'); } else { Snd.tap(); toast('Told her not yet'); }
   },
   async taskDel(el) { Snd.tap(); await delDoc('tasks/' + el.dataset.id); },
   weekOff(el) { S.ui.weekOff = Math.max(-1, Math.min(1, (S.ui.weekOff || 0) + Number(el.dataset.n))); S.ui.weekSel = null; Snd.tap(); S.render(); },

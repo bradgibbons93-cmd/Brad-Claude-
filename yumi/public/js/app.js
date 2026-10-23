@@ -5,6 +5,8 @@ import { viewDoor, DOOR_ACTIONS } from './door.js';
 import { viewApp } from './views.js';
 import { ROOM_ACTIONS, FAMILY_ACTIONS, DAD_ACTIONS, EXTRA_ACTIONS, MORE_ACTIONS } from './actions.js';
 import { swReady, pushSync, refreshPush } from './push.js';
+import { GAME_ACTIONS } from './games.js';
+import { DIARY_ACTIONS } from './diary.js';
 
 const TABS = ['home', 'routines', 'rewards', 'family', 'me'];
 
@@ -19,6 +21,8 @@ S.render = (force) => {
 function draw(force) {
   const app = $('#app'), a = document.activeElement;
   if (!force && a && app.contains(a) && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'checkbox') { deferred = true; return; }
+  /* A finger mid-drag on the word search: draw once it lifts, or the line under it vanishes. */
+  if (S.ui?.wsDragging) { deferred = true; return; }
   deferred = false;
   const view = S.mode === 'app' ? viewApp : viewDoor;
   const p = S.me && S.mode === 'app' && isKid() ? P(S.me.id) : null;
@@ -79,7 +83,7 @@ const NAV = {
   closeSheet() { closeSheet(); },
   pick(el) { el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el)); Snd.tick(); },
 };
-const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...MORE_ACTIONS, ...NAV };
+const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...MORE_ACTIONS, ...GAME_ACTIONS, ...DIARY_ACTIONS, ...NAV };
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]');

@@ -108,6 +108,7 @@ export function picOf(id, kind = 'head') {
 export function avatar(id, kind = 'head', cls = 'av', style = '') {
   const src = picOf(id, kind);
   if (src) return `<span class="${cls}" style="${style}"><img src="${esc(src)}" alt="" loading="lazy"></span>`;
+  const p = P(id);
   return `<span class="${cls}" style="${style};background:${accentSoftOf(id)};color:${accentOf(id)}">${esc((p?.name || '?')[0])}</span>`;
 }
 export const buddyOf = id => BUDDIES.find(b => b.id === P(id)?.buddy) || null;

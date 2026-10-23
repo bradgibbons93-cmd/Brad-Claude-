@@ -53,6 +53,22 @@ describe("who writes what", () => {
     expect(checkWrite(ana, { path: "people/ana", merge: { role: "parent" } }, { name: "Ana" }).ok).toBe(false);
     expect(checkWrite(ana, { path: "people/bea", merge: { buddy: "luna" } }, { name: "Bea" }).ok).toBe(false);
   });
+  test("a diary is read and written by its writer only", () => {
+    const mum = me("ma", "parent");
+    expect(readPath(dad, "diary/pa/n1")).toBe("yes");
+    expect(readPath(ana, "diary/pa/n1")).toBe("no");
+    expect(readPath(mum, "diary/pa/n1")).toBe("no");
+    expect(checkWrite(dad, { path: "diary/pa/n1", set: { text: "Big day" } }, null).ok).toBe(true);
+    expect(checkWrite(mum, { path: "diary/pa/n1", set: { text: "x" } }, null).ok).toBe(false);
+    expect(checkWrite(ana, { path: "diary/pa/n1", del: true }, { text: "Big day" }).ok).toBe(false);
+    expect(checkWrite(dad, { path: "diary/pa/sub/n1", set: { text: "x" } }, null).ok).toBe(false);
+  });
+  test("game progress: everyone sees it, only you move yours", () => {
+    expect(readPath(bea, "play/ana/katseye")).toBe("yes");
+    expect(checkWrite(ana, { path: "play/ana/katseye", set: { found: {} } }, null).ok).toBe(true);
+    expect(checkWrite(bea, { path: "play/ana/katseye", set: { found: {} } }, null).ok).toBe(false);
+    expect(checkWrite(dad, { path: "play/ana/katseye", set: { found: {} } }, null).ok).toBe(false);
+  });
   test("settings and houses are a parent's call", () => {
     expect(checkWrite(ana, { path: "stays/2026-10-16", set: { home: "mum" } }, null).ok).toBe(false);
     expect(checkWrite(dad, { path: "stays/2026-10-16", set: { home: "mum" } }, null).ok).toBe(true);

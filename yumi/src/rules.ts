@@ -17,8 +17,10 @@ export function readPath(c: Ctx, path: string): Read {
   const p = path.split("/");
   switch (p[0]) {
     case "settings": case "people": case "feed": case "comments": case "events": case "stays":
-    case "tasks": case "taskDone": case "album": case "pub":
+    case "tasks": case "taskDone": case "album": case "pub": case "play":
       return "yes";
+    /* A diary is its writer's alone: not the girls, not another parent, not a backup made by anyone else. */
+    case "diary": return p[1] === c.me.id ? "yes" : "no";
     case "notes": return isParent(c) ? "yes" : "cond";
     case "inbox": case "dad": return isParent(c) ? "yes" : "no";
     case "kids": {
@@ -116,6 +118,14 @@ export function checkWrite(c: Ctx, op: WriteOp, old: any): Check {
       if (op.del) return ok();
       if (creating) return no("server_only");
       return ok(next);
+    case "diary":
+      if (p.length !== 3 || p[1] !== me) return no("diary_is_private");
+      if (next) next.text = String(next.text || "").slice(0, 4000);
+      return ok(op.del ? undefined : stamp(next));
+    /* Game progress: everyone can see how far the others got, only you can move your own. */
+    case "play":
+      if (p.length !== 3 || p[1] !== me) return no("not_yours");
+      return ok(op.del ? undefined : stamp(next));
     case "taskDone": case "pub":
       return no("use_actions");
     case "kids": {

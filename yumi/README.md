@@ -1,7 +1,8 @@
 # Yumi
 
 A family app for kids' phones: routines, stars, strikes, a private journal, "My week" picks,
-the family calendar with Mum's and Dad's houses, jobs, ideas and messages. Each family gets
+the family calendar with Mum's and Dad's houses, jobs, ideas and messages, a private diary for Dad
+and games (the KATSEYE word search to start). Each family gets
 its own name under the Yumi brand ("Yumi · <family name>").
 
 It runs as one small Bun server with Postgres, on Railway.
@@ -29,6 +30,11 @@ It runs as one small Bun server with Postgres, on Railway.
 - At 100 stars it's payday: $100 from the parent, then the jar and strikes start again
   (anything over 100 carries over). Rewards can be bought with stars before then.
 - Finishing the whole routine earns a star; unticking takes it back.
+- A diary (`diary/<person>/…`) only ever reaches its writer's own phones: not the girls, not another
+  parent, and not anyone else's backup.
+- Games keep progress at `play/<person>/<game>`. Everyone can see how far the others got; only you can
+  move your own. Games never give stars. The puzzle logic is in `public/js/wordsearch.js` so the unit
+  tests can check every word is on the printable and that every shuffle fits all twelve.
 
 ## Running locally
 

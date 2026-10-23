@@ -5,6 +5,8 @@ import { S, P, people, kids, avatar, short, nick, famName, BUDDIES, THEMES, ACCE
   IDEA_FILTERS, homeFor, homeName, nextSwitch, roster, places, placeOf, rhythm, routineOf, dayOf, routineStats, moodToday, starsOf, strikesOf,
   streakSet, rewardsList, TRAIL_REWARDS, ideasList, jobsFor, doneBy, jobPending, rules, weekDays, isParent, isKid, buddyOf, buddyImg } from './model.js';
 import { isIOS } from './push.js';
+import { gamesPage, gamesTeaser } from './games.js';
+import { diaryPage, diaryQuickCard } from './diary.js';
 
 const hasArt = k => (S.boot?.art || []).includes(k);
 const slotNow = () => { const h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'after' : 'bed'; };
@@ -181,12 +183,12 @@ function tabHome() {
     const w = waitingItems();
     return `${hero()}${peopleCards()}${pushCard()}
       ${w.length ? `<section class="card" id="waiting"><div class="ch"><span class="badge b-pink">🔔</span><h3>Waiting for you</h3><em>${w.length}</em></div>${w.map(x => x.html).join('')}</section>` : ''}
-      ${quickButtons()}${girlsStarsCard()}${dadRoutineCard()}${notesCard()}${todayCard()}`;
+      ${quickButtons()}${diaryQuickCard()}${girlsStarsCard()}${dadRoutineCard()}${notesCard()}${todayCard()}${gamesTeaser()}`;
   }
   return `${hero()}${peopleCards()}${principalCard(me)}${pushCard()}${buddyCard(me)}
     ${routineCard(me)}
     <div class="duo"><div class="col">${starsCard(me)}</div><div class="col">${quickButtons()}${notesCard(true)}</div></div>
-    ${moodCard(me)}${todayCard()}`;
+    ${moodCard(me)}${gamesTeaser()}${todayCard()}`;
 }
 
 /* Asks once (until dismissed) to turn on lock-screen notifications. */
@@ -425,7 +427,8 @@ function ideasPage() {
 /* ---------- Me / Settings ---------- */
 const backBtn = () => `<div class="backrow"><button class="btn small" data-act="sub" data-sub="">‹ Back</button></div>`;
 function tabMe() {
-  if (isParent()) return S.sub === 'phones' ? phonesPage() : S.sub === 'settings' ? settingsPage() : parentMenu();
+  if (S.sub === 'games') return gamesPage();
+  if (isParent()) return S.sub === 'phones' ? phonesPage() : S.sub === 'settings' ? settingsPage() : S.sub === 'diary' ? diaryPage() : parentMenu();
   const k = S.me.id;
   if (S.sub === 'journal') return journalPage(k);
   if (S.sub === 'mine') return minePage(k);
@@ -438,6 +441,7 @@ function tabMe() {
       <button class="c-pink" data-act="sub" data-sub="mine"><i>🎨</i><b>Make it mine</b><small>Picture, buddy, look</small></button>
       <button class="c-mint" data-act="sub" data-sub="planner"><i>🗓️</i><b>My Planner</b><small>${Store.col(`kids/${k}/plans`).filter(x => !x.done).length} to do</small></button>
       <button class="c-sun" data-act="sub" data-sub="wish"><i>🎁</i><b>Wishlist</b><small>${Store.col(`kids/${k}/wishlist`).length} wishes</small></button>
+      <button class="c-lilac" data-act="sub" data-sub="games"><i>🎮</i><b>Games</b><small>KATSEYE word search</small></button>
       ${pushTile('c-blue')}
       <button class="c-mint" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
       <button class="c-ocean" data-act="signOut"><i>👋</i><b>Sign out</b><small>Your code brings you back</small></button>
@@ -498,7 +502,9 @@ function parentMenu() {
   const p = P(S.me.id);
   return `<div class="profile">${picEdit(S.me.id)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || 'Parent')}</p><p>🔥 ${Number(p.pub?.streak) || 0} day streak</p></div></div>
     <div class="tiles">
-      <button class="c-lilac" data-act="sub" data-sub="phones"><i>📱</i><b>Phones</b><small>Add a phone, codes</small></button>
+      <button class="c-pink" data-act="sub" data-sub="diary"><i>📔</i><b>My diary</b><small>${Store.col(`diary/${S.me.id}`).length} private notes</small></button>
+      <button class="c-lilac" data-act="sub" data-sub="games"><i>🎮</i><b>Games</b><small>KATSEYE word search</small></button>
+      <button class="c-blue" data-act="sub" data-sub="phones"><i>📱</i><b>Phones</b><small>Add a phone, codes</small></button>
       <button class="c-blue" data-act="sub" data-sub="settings"><i>🏠</i><b>Houses &amp; goal</b><small>Pattern, places, family goal</small></button>
       <button class="c-mint" data-act="goGirlsWeek"><i>🧭</i><b>Girls' week</b><small>What they'd like</small></button>
       <a class="c-sun" href="/api/export" download><i>💾</i><b>Backup</b><small>Download everything</small></a>

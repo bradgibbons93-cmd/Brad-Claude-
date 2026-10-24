@@ -69,6 +69,26 @@ describe("who writes what", () => {
     expect(checkWrite(bea, { path: "play/ana/katseye", set: { found: {} } }, null).ok).toBe(false);
     expect(checkWrite(dad, { path: "play/ana/katseye", set: { found: {} } }, null).ok).toBe(false);
   });
+  test("an HQ is its owner's alone: not the girls, not another parent", () => {
+    const mum = me("ma", "parent");
+    expect(readPath(dad, "hq/pa/tasks/t1")).toBe("yes");
+    expect(readPath(mum, "hq/pa/tasks/t1")).toBe("no");
+    expect(readPath(ana, "hq/pa/txns/x")).toBe("no");
+    expect(readPath(ana, "hq/ana/tasks/t1")).toBe("no");
+    expect(checkWrite(dad, { path: "hq/pa/tasks/t1", set: { title: "Pick the price", pri: "now" } }, null).ok).toBe(true);
+    expect(checkWrite(mum, { path: "hq/pa/tasks/t1", set: { title: "x" } }, null).ok).toBe(false);
+    expect(checkWrite(ana, { path: "hq/ana/tasks/t1", set: { title: "x" } }, null).ok).toBe(false);
+    expect(checkWrite(dad, { path: "hq/pa/secrets/t1", set: { title: "x" } }, null).ok).toBe(false);
+    expect(checkWrite(dad, { path: "hq/pa/tasks/sub/t1", set: { title: "x" } }, null).ok).toBe(false);
+  });
+  test("HQ to-dos need a title and a real priority; money needs an amount", () => {
+    expect(checkWrite(dad, { path: "hq/pa/tasks/t1", set: { title: "  " } }, null).ok).toBe(false);
+    const r = checkWrite(dad, { path: "hq/pa/tasks/t1", set: { title: "Call the bank", pri: "urgent!!", done: "yes" } }, null) as any;
+    expect(r.ok && r.data.pri).toBe("next");
+    expect(r.data.done).toBe(false);
+    expect(checkWrite(dad, { path: "hq/pa/txns/x", set: { note: "Coles" } }, null).ok).toBe(false);
+    expect(checkWrite(dad, { path: "hq/pa/txns/x", set: { note: "Coles", amount: -42.5, date: "2026-10-24" } }, null).ok).toBe(true);
+  });
   test("settings and houses are a parent's call", () => {
     expect(checkWrite(ana, { path: "stays/2026-10-16", set: { home: "mum" } }, null).ok).toBe(false);
     expect(checkWrite(dad, { path: "stays/2026-10-16", set: { home: "mum" } }, null).ok).toBe(true);

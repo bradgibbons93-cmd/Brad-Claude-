@@ -32,9 +32,31 @@ It runs as one small Bun server with Postgres, on Railway.
 - Finishing the whole routine earns a star; unticking takes it back.
 - A diary (`diary/<person>/…`) only ever reaches its writer's own phones: not the girls, not another
   parent, and not anyone else's backup.
+- An HQ (`hq/<person>/…`) only ever reaches its owner's phones: not the girls, not another parent.
 - Games keep progress at `play/<person>/<game>`. Everyone can see how far the others got; only you can
   move your own. Games never give stars. The puzzle logic is in `public/js/wordsearch.js` so the unit
   tests can check every word is on the printable and that every shuffle fits all twelve.
+
+## HQ and the iPhone widget
+
+A parent's own command centre, on the HQ tab, in the Cel-X Group look: brain dump, the studio,
+to-dos, money and subscriptions. It lives at `hq/<person>/<collection>/<id>` (`src/hq.ts`).
+
+- An HQ reaches only its owner's phones: not the girls, and not another parent, since it holds work
+  and money. Writes are checked in `rules.ts` like everything else.
+- The sums (task order, a month's money, what subscriptions cost) are in `public/js/hqmath.js`, which
+  the page, the server and the tests all import, so the page and the widget can't disagree.
+- **The widget** is a script for the free Scriptable app (`src/hqscript.ts`). A web app can't have a
+  real iPhone widget, and a Scriptable widget can't run code on a tap, only open a link, so every tap
+  opens the same script in Scriptable to tick a to-do, add one, start a 25-minute block or show the
+  list. It reads `GET /api/hq/w/<key>` and posts to `/task` and `/done`. The key is 32 random bytes
+  shown once inside the script; only its SHA-256 is kept. Making a new one, or Turn off, stops older
+  copies. Today's events come from the phone's own calendar.
+- **The move from the HQ page in Claude**: the parent taps "Get a code" (30 minutes, single use) and
+  Claude posts the HQ data to `POST /api/hq/import` with it. It only fills empty spots.
+- `test/unit/hqscript.test.ts` runs the widget script in `test/scriptable.ts`, a stand-in for
+  Scriptable that throws on anything Scriptable doesn't have, because a typo there is a blank widget
+  on the phone. `test/e2e/hq.mjs` drives the whole thing in a phone-sized browser.
 
 ## Running locally
 

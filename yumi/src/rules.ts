@@ -10,6 +10,10 @@ type Ctx = { me: Me; kids: Set<string> };
 
 const isParent = (c: Ctx) => c.me.role === "parent";
 
+/* A parent's own HQ (to-dos, money, subscriptions), at hq/<person>/<collection>/<id>. */
+export const HQ_COLS = new Set(["tasks", "txns", "subs", "rules", "settings"]);
+const PRIS = new Set(["now", "next", "later"]);
+
 /* Field limits for anything a kid writes. Parents get the same limits; it keeps rows small. */
 const MAX_DOC_BYTES = 12000;
 
@@ -21,6 +25,8 @@ export function readPath(c: Ctx, path: string): Read {
       return "yes";
     /* A diary is its writer's alone: not the girls, not another parent, not a backup made by anyone else. */
     case "diary": return p[1] === c.me.id ? "yes" : "no";
+    /* So is an HQ: not the girls, and not another parent either, since it holds work and money. */
+    case "hq": return p[1] === c.me.id && isParent(c) ? "yes" : "no";
     case "notes": return isParent(c) ? "yes" : "cond";
     case "inbox": case "dad": return isParent(c) ? "yes" : "no";
     case "kids": {
@@ -52,7 +58,7 @@ export type Check = { ok: true; data?: any } | { ok: false; why: string };
 const ok = (data?: any): Check => ({ ok: true, data });
 const no = (why: string): Check => ({ ok: false, why });
 
-function clean(v: any, depth = 0): any {
+export function clean(v: any, depth = 0): any {
   if (v === null || typeof v === "boolean") return v;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (typeof v === "string") return v.slice(0, 4000);
@@ -121,6 +127,16 @@ export function checkWrite(c: Ctx, op: WriteOp, old: any): Check {
     case "diary":
       if (p.length !== 3 || p[1] !== me) return no("diary_is_private");
       if (next) next.text = String(next.text || "").slice(0, 4000);
+      return ok(op.del ? undefined : stamp(next));
+    case "hq":
+      if (!parent || p.length !== 4 || p[1] !== me || !HQ_COLS.has(p[2])) return no("hq_is_private");
+      if (next && p[2] === "tasks") {
+        next.title = String(next.title || "").slice(0, 300);
+        if (!next.title.trim()) return no("needs_a_title");
+        if (!PRIS.has(next.pri)) next.pri = "next";
+        next.done = next.done === true;
+      }
+      if (next && p[2] === "txns" && !Number.isFinite(next.amount)) return no("needs_an_amount");
       return ok(op.del ? undefined : stamp(next));
     /* Game progress: everyone can see how far the others got, only you can move your own. */
     case "play":

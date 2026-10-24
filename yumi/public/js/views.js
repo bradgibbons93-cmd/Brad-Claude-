@@ -7,6 +7,7 @@ import { S, P, people, kids, avatar, short, nick, famName, BUDDIES, THEMES, ACCE
 import { isIOS } from './push.js';
 import { gamesPage, gamesTeaser } from './games.js';
 import { diaryPage, diaryQuickCard } from './diary.js';
+import { hqPage, hqHomeCard } from './hq.js';
 
 const hasArt = k => (S.boot?.art || []).includes(k);
 const slotNow = () => { const h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'after' : 'bed'; };
@@ -17,10 +18,10 @@ const notesOn = d => Store.col('notes').filter(n => n.date === d && (!n.priv || 
 const eventsOn = d => Store.col('events').filter(e => e.date === d).sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
 
 export const TABS_KID = [['home', '🏠', 'Home'], ['routines', '📋', 'Routines'], ['rewards', '🏆', 'Rewards'], ['family', '👨‍👧‍👧', 'Family'], ['me', '😊', 'Me']];
-export const TABS_PARENT = [['home', '🏠', 'Home'], ['routines', '📋', 'Routines'], ['rewards', '🏆', 'Rewards'], ['family', '👨‍👧‍👧', 'Family'], ['me', '⚙️', 'Settings']];
+export const TABS_PARENT = [['home', '🏠', 'Home'], ['routines', '📋', 'Routines'], ['rewards', '🏆', 'Rewards'], ['family', '👨‍👧‍👧', 'Family'], ['hq', '🗂️', 'HQ'], ['me', '⚙️', 'Settings']];
 
 export function viewApp() {
-  const body = { home: tabHome, routines: tabRoutines, rewards: tabRewards, family: tabFamily, me: tabMe }[S.tab] || tabHome;
+  const body = { home: tabHome, routines: tabRoutines, rewards: tabRewards, family: tabFamily, me: tabMe, hq: isParent() ? hqPage : tabHome }[S.tab] || tabHome;
   const tabs = isParent() ? TABS_PARENT : TABS_KID;
   return `<div class="screen"><div class="main">${body()}</div>
     <nav class="nav">${tabs.map(([id, e, t]) => `<button class="${S.tab === id ? 'on' : ''}" data-act="tab" data-tab="${id}" aria-current="${S.tab === id}"><i>${e}</i>${t}</button>`).join('')}</nav>
@@ -181,7 +182,7 @@ function tabHome() {
   const me = S.me.id;
   if (isParent()) {
     const w = waitingItems();
-    return `${hero()}${peopleCards()}${pushCard()}
+    return `${hero()}${peopleCards()}${hqHomeCard()}${pushCard()}
       ${w.length ? `<section class="card" id="waiting"><div class="ch"><span class="badge b-pink">🔔</span><h3>Waiting for you</h3><em>${w.length}</em></div>${w.map(x => x.html).join('')}</section>` : ''}
       ${quickButtons()}${diaryQuickCard()}${girlsStarsCard()}${dadRoutineCard()}${notesCard()}${todayCard()}${gamesTeaser()}`;
   }

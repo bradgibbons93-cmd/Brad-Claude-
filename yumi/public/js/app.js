@@ -7,8 +7,9 @@ import { ROOM_ACTIONS, FAMILY_ACTIONS, DAD_ACTIONS, EXTRA_ACTIONS, MORE_ACTIONS 
 import { swReady, pushSync, refreshPush } from './push.js';
 import { GAME_ACTIONS } from './games.js';
 import { DIARY_ACTIONS } from './diary.js';
+import { HQ_ACTIONS } from './hq.js';
 
-const TABS = ['home', 'routines', 'rewards', 'family', 'me'];
+const TABS = ['home', 'routines', 'rewards', 'family', 'hq', 'me'];
 
 let pending = false, deferred = false;
 S.render = (force) => {
@@ -28,7 +29,10 @@ function draw(force) {
   const p = S.me && S.mode === 'app' && isKid() ? P(S.me.id) : null;
   document.documentElement.style.setProperty('--accent', p ? accentOf(S.me.id) : '#EC3D7C');
   document.documentElement.style.setProperty('--accent-soft', p ? (ACCENT_SOFT[p.accent] || '#FFE1EC') : '#FFE1EC');
-  document.body.className = p && p.theme && p.theme !== 'classic' ? 't-' + p.theme : '';
+  /* A parent's HQ wears the Cel-X Group look, dark from edge to edge. */
+  const hqOn = S.mode === 'app' && isParent() && S.tab === 'hq';
+  document.body.className = hqOn ? 't-hq' : p && p.theme && p.theme !== 'classic' ? 't-' + p.theme : '';
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', hqOn ? '#08090C' : '#FFF4EA');
   app.innerHTML = view();
 }
 document.addEventListener('focusout', () => { if (deferred) setTimeout(() => S.render(), 30); });
@@ -83,7 +87,7 @@ const NAV = {
   closeSheet() { closeSheet(); },
   pick(el) { el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el)); Snd.tick(); },
 };
-const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...MORE_ACTIONS, ...GAME_ACTIONS, ...DIARY_ACTIONS, ...NAV };
+const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...MORE_ACTIONS, ...GAME_ACTIONS, ...DIARY_ACTIONS, ...HQ_ACTIONS, ...NAV };
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]');

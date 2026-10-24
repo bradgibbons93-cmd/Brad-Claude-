@@ -52,8 +52,11 @@ to-dos, money and subscriptions. It lives at `hq/<person>/<collection>/<id>` (`s
   list. It reads `GET /api/hq/w/<key>` and posts to `/task` and `/done`. The key is 32 random bytes
   shown once inside the script; only its SHA-256 is kept. Making a new one, or Turn off, stops older
   copies. Today's events come from the phone's own calendar.
-- **The move from the HQ page in Claude**: the parent taps "Get a code" (30 minutes, single use) and
-  Claude posts the HQ data to `POST /api/hq/import` with it. It only fills empty spots.
+- **The move from the HQ page in Claude**: the HQ page's "Copy for Yumi" puts everything on the
+  clipboard and the HQ tab's "Paste from HQ" brings it in for the signed-in parent
+  (`POST /api/hq/import-mine`). Claude can do the same from outside with a 30-minute, single-use code
+  the parent makes (`POST /api/hq/import-code`, then `POST /api/hq/import`). Either way it only fills
+  empty spots, so doing it twice adds nothing twice.
 - `test/unit/hqscript.test.ts` runs the widget script in `test/scriptable.ts`, a stand-in for
   Scriptable that throws on anything Scriptable doesn't have, because a typo there is a blank widget
   on the phone. `test/e2e/hq.mjs` drives the whole thing in a phone-sized browser.

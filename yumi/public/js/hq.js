@@ -67,14 +67,31 @@ function head(icon, t, meta, right = '') {
   return `<div class="hqh"><h2><span class="hqbow" aria-hidden="true">${icon}</span>${t}</h2>${meta ? `<span class="hqmeta">${meta}</span>` : ''}${right ? `<span class="hqright">${right}</span>` : ''}</div>`;
 }
 
+/* The move from the HQ page in Claude: it copies everything, this pastes it in. One time; it only fills empty spots. */
 function importCard() {
-  const c = S.ui.hqCode;
+  const pv = S.ui.hqPaste;
   return `<section class="hqcard hqimp" id="hq-import">${head('🗂️', 'Bring your HQ across')}
-    <p class="hqp">Your to-dos, money and subscriptions on the HQ page in Claude come across once. Tap for a code, then send the code to Claude in your chat.</p>
-    ${c ? `<div class="hqcode"><b id="hqCodeText">${esc(c.code)}</b><button class="hqbtn" data-act="hqCopy" data-copy="${esc(c.code)}">Copy</button></div><p class="hqsmall">Works once, for 30 minutes.</p>`
-      : `<button class="hqbtn y" data-act="hqImportCode">Get a code</button>`}
+    <p class="hqp">Your to-dos, money and subscriptions on the HQ page in Claude come across once.</p>
+    <ol class="hqsteps"><li>Open your <a href="${LIVE_DESK}" target="_blank" rel="noopener">HQ page in Claude</a> and tap <b>Copy for Yumi</b> at the top.</li><li>Come back here and tap <b>Paste from HQ</b>.</li></ol>
+    ${pv ? `<p class="hqok">✓ Found ${pv.tasks} to-dos, ${pv.txns} money entries and ${pv.subs} subscriptions.</p>
+      <div class="hqrow"><button class="hqbtn y" data-act="hqImportGo">Bring it across</button><button class="hqbtn" data-act="hqPasteClear">Start again</button></div>`
+      : `<button class="hqbtn y" data-act="hqPaste">Paste from HQ</button>
+      <textarea id="hqPasteBox" class="hqscript" rows="3" placeholder="Or press and hold here, then Paste" aria-label="Paste from HQ"></textarea>`}
   </section>`;
 }
+
+const readExport = text => {
+  try { const j = JSON.parse(String(text || '').trim()); if (j && j.hqExport === 1 && j.data && typeof j.data === 'object') return j; } catch (e) {}
+  return null;
+};
+const countOf = (j, k) => Object.keys(j.data[k] || {}).length;
+function takePaste(text) {
+  const j = readExport(text);
+  if (!j) { Snd.err(); toast("That isn't the HQ copy. Tap Copy for Yumi on the HQ page first."); return; }
+  S.ui.hqPasteData = j; S.ui.hqPaste = { tasks: countOf(j, 'tasks'), txns: countOf(j, 'txns'), subs: countOf(j, 'subs') };
+  Snd.check(); S.render(true);
+}
+document.addEventListener('paste', e => { if (e.target?.id === 'hqPasteBox') setTimeout(() => takePaste(e.target.value), 0); });
 
 function dumpCard(u) {
   return `<section class="hqcard" id="hq-dump">${head('🧠', 'Brain dump', 'write it out, then park it')}
@@ -275,7 +292,21 @@ export const HQ_ACTIONS = {
     else await setDoc(`${base()}/txns/${uid()}`, { ...doc, source: 'yumi', pending: false, added: nowIso() });
   },
   async hqTxDel(el) { if (!twoTap(el, 'Sure? Tap again')) return; closeSheet(); Snd.tap(); await delDoc(`${base()}/txns/${el.dataset.id}`); },
-  async hqImportCode() { Snd.tap(); const r = await api('/hq/import-code', {}); if (!r.ok) { toast("Couldn't make a code. Try again."); return; } S.ui.hqCode = r; S.render(true); },
+  async hqPaste() {
+    const box = $('#hqPasteBox');
+    if (box?.value.trim()) { takePaste(box.value); return; }
+    try { takePaste(await navigator.clipboard.readText()); }
+    catch (e) { box?.focus(); toast('Press and hold the box, then tap Paste'); }
+  },
+  hqPasteClear() { S.ui.hqPaste = null; S.ui.hqPasteData = null; Snd.tap(); S.render(true); },
+  async hqImportGo(el) {
+    const j = S.ui.hqPasteData; if (!j) return;
+    el.disabled = true; el.textContent = 'Bringing it across…';
+    const r = await api('/hq/import-mine', { from: String(j.from || 'HQ page'), data: j.data });
+    if (!r.ok) { el.disabled = false; el.textContent = 'Bring it across'; Snd.err(); toast("That didn't come across. Try again."); return; }
+    S.ui.hqPaste = null; S.ui.hqPasteData = null; Confetti.from(el, 30); Snd.magic();
+    toast(`${r.added.tasks} to-dos, ${r.added.txns} money entries and ${r.added.subs} subscriptions are in ✓`);
+  },
   async hqWidgetMake() { Snd.tap(); const r = await api('/hq/widget', {}); if (!r.ok) { toast("Couldn't make it. Try again."); return; } S.ui.hqScript = r.script; S.ui.hqWidget = { on: true, made: r.made }; S.render(true); $('#hq-widget')?.scrollIntoView({ block: 'start' }); },
   hqScriptHide() { S.ui.hqScript = null; Snd.tap(); S.render(true); },
   async hqWidgetOff(el) { if (!twoTap(el, 'Sure? Tap again')) return; Snd.tap(); await api('/hq/widget/off', {}); S.ui.hqWidget = { on: false }; S.ui.hqScript = null; toast('Widget turned off'); S.render(true); },

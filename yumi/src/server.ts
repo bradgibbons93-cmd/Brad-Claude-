@@ -337,6 +337,10 @@ async function api(req: Request, url: URL, server: any): Promise<Response> {
   if (path === "/hq/widget" && req.method === "POST") return json({ ok: true, ...(await hq.newWidgetKey(me.id, originOf(req, url), me.name)) });
   if (path === "/hq/widget/off" && req.method === "POST") { await hq.widgetOff(me.id); return json({ ok: true }); }
   if (path === "/hq/import-code" && req.method === "POST") return json({ ok: true, ...(await hq.makeImportCode(me.id)) });
+  if (path === "/hq/import-mine" && req.method === "POST") {
+    const { status, ...r } = await hq.importMine(me.id, await body(req, 3_000_000)) as any;
+    return json(r, r.ok ? 200 : status || 400);
+  }
   if (path === "/rewards" && req.method === "GET") return json({ ok: true, items: (await getDoc("settings/rewards"))?.items || DEFAULT_REWARDS });
   if (path === "/export" && req.method === "GET") {
     const rows = await sql`SELECT path, data, updated FROM y_docs WHERE fam = ${FAM} AND NOT deleted ORDER BY path`;

@@ -4,8 +4,9 @@
    Two ways in that don't use the app's cookie:
    - The iPhone widget. Scriptable has no session, so it carries a key: 32 random bytes, shown once
      inside the script, and only its SHA-256 is kept. A new key, or Turn off, stops every older copy.
-   - The one-time move from the HQ page in Claude. The parent taps "Bring in from HQ" for a code
-     (30 minutes, single use) and Claude sends the HQ data with it. It only fills empty spots. */
+   - The one-time move from the HQ page in Claude, by code: the parent makes a code (30 minutes,
+     single use) and Claude sends the HQ data with it. The app itself uses importMine instead: the HQ
+     page copies everything and the signed-in parent pastes it in. Either way it only fills empty spots. */
 import { sql, FAM, getDoc, putDoc, listDocs, insertDocIfMissing, meta, setMeta, bump } from "./db";
 import * as auth from "./auth";
 import * as push from "./push";
@@ -116,24 +117,34 @@ export async function importHq(b: any) {
   if (!c || c.until < Date.now()) { if (c) await delMeta(k); return { ok: false, error: "bad_code", status: 403 }; }
   const p = await auth.person(c.person);
   if (!p || p.role !== "parent") return { ok: false, error: "bad_code", status: 403 };
-  const data = b?.data && typeof b.data === "object" ? b.data : {};
+  await delMeta(k);
+  return importInto(p.id, b?.data, b?.from);
+}
+
+/* The same move, pasted into the app by the signed-in parent: the HQ page copies everything, Yumi pastes it. */
+export async function importMine(person: string, b: any) {
+  if (!b?.data || typeof b.data !== "object" || Array.isArray(b.data)) return { ok: false, error: "nothing_to_import", status: 400 };
+  return importInto(person, b.data, b.from);
+}
+
+async function importInto(person: string, data: any, from: unknown) {
+  data = data && typeof data === "object" ? data : {};
   const added: Record<string, number> = {}, skipped: Record<string, number> = {};
   for (const name of HQ_COLS) {
     added[name] = 0; skipped[name] = 0;
     const rows = data[name] && typeof data[name] === "object" ? Object.entries(data[name]).slice(0, 2000) : [];
     for (const [id, raw] of rows) {
       const doc = clean(raw);
-      if (!okId(id) || !doc || typeof doc !== "object" || Array.isArray(doc) || JSON.stringify(doc).length > MAX_DOC_BYTES) { skipped[name]++; continue; }
+      if (!okId(id) || id === "imported" || !doc || typeof doc !== "object" || Array.isArray(doc) || JSON.stringify(doc).length > MAX_DOC_BYTES) { skipped[name]++; continue; }
       if (name === "tasks" && !String(doc.title || "").trim()) { skipped[name]++; continue; }
-      if (await insertDocIfMissing(`hq/${p.id}/${name}/${id}`, doc, "import")) added[name]++; else skipped[name]++;
+      if (await insertDocIfMissing(`hq/${person}/${name}/${id}`, doc, "import")) added[name]++; else skipped[name]++;
     }
   }
-  await delMeta(k);
   const at = new Date().toISOString();
-  await putDoc(`hq/${p.id}/settings/imported`, { at, from: String(b?.from || "HQ").slice(0, 60), added, skipped }, "import");
+  await putDoc(`hq/${person}/settings/imported`, { at, from: String(from || "HQ").slice(0, 60), added, skipped }, "import");
   bump();
-  console.log(`hq import for ${p.id}: ${JSON.stringify(added)} added, ${JSON.stringify(skipped)} skipped`);
-  await push.notify([p.id], { title: "🗂️ Your HQ is in Yumi", body: `${added.tasks} to-dos, ${added.txns} money entries and ${added.subs} subscriptions came across.`, tag: "hq", url: "/?tab=hq" });
+  console.log(`hq import for ${person}: ${JSON.stringify(added)} added, ${JSON.stringify(skipped)} skipped`);
+  await push.notify([person], { title: "🗂️ Your HQ is in Yumi", body: `${added.tasks} to-dos, ${added.txns} money entries and ${added.subs} subscriptions came across.`, tag: "hq", url: "/?tab=hq" });
   return { ok: true, added, skipped };
 }
 

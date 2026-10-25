@@ -4,9 +4,12 @@
 import { esc, Store, nowIso, Snd, Confetti, toast, write } from './core.js';
 import { S, people, avatar, short, isParent } from './model.js';
 import { N, KATSEYE_SHEET, KATSEYE_WORDS, makeGrid, locate, lineCells, snap } from './wordsearch.js';
+import { memoryPage, xoPage } from './minigames.js';
 
 export const GAMES = [
   { id: 'katseye', e: '💜', t: 'KATSEYE Word Search', d: 'Find the 12 hidden words', words: KATSEYE_WORDS, sheet: KATSEYE_SHEET },
+  { id: 'memory', e: '🃏', t: 'Memory match', d: 'Flip two, find the pairs', page: memoryPage },
+  { id: 'xo', e: '⭕', t: 'Noughts & crosses', d: 'Beat Yumi, or play your sister', page: xoPage },
 ];
 const COLORS = ['#FF5FA2', '#A35BFF', '#3FA9F5', '#22C08A', '#FFB020', '#FF7A45', '#E040FB', '#00B8D4', '#7C4DFF', '#F06292', '#26A69A', '#FFCA28'];
 const gameById = id => GAMES.find(g => g.id === id) || GAMES[0];
@@ -30,11 +33,18 @@ const seg = (a, b, color, cls = '') => `<line class="${cls}" x1="${cx(a)}" y1="$
 export function gamesTeaser() {
   const g = GAMES[0], n = Object.keys(foundOf(progOf(g.id))).length, all = g.words.length;
   return `<button class="card gamecard" data-act="goGames" style="text-align:left"><div class="ch"><span class="badge b-lilac">🎮</span><h3>Games</h3><em>${n === all ? 'All found! ✓' : n ? `${n}/${all} found` : 'New'}</em></div>
-    <span class="gc-row"><span class="gc-ic">${g.e}</span><span class="grow"><b>${esc(g.t)}</b><small>${n && n < all ? 'Keep going, you got this!' : esc(g.d)}</small></span><span class="gc-go">Play ›</span></span></button>`;
+    <span class="gc-row"><span class="gc-ic">${g.e}</span><span class="grow"><b>${esc(g.t)}</b><small>${n && n < all ? 'Keep going, you got this!' : esc(g.d)}</small></span><span class="gc-go">Play ›</span></span>
+    <small class="gc-more">Also: ${GAMES.slice(1).map(x => `${x.e} ${esc(x.t)}`).join(' · ')}</small></button>`;
 }
 
 export function gamesPage() {
-  const g = gameById(S.ui.game), p = progOf(g.id), found = foundOf(p), grid = gridOf(g, p.seed || 0);
+  const g = gameById(S.ui.game);
+  const head = `<div class="backrow"><button class="btn small" data-act="sub" data-sub="">‹ Back</button></div>
+    <h1 class="page-title" style="padding-top:0"><span>🎮</span>Games</h1>
+    <div class="chips">${GAMES.map(x => `<button class="${x.id === g.id ? 'on' : ''}" data-act="gamePick" data-g="${x.id}">${x.e} ${esc(x.t)}</button>`).join('')}</div>`;
+  const foot = isParent() ? '' : '<p class="note" style="text-align:center">Just for fun. Stars still come from your routine and jobs ⭐</p>';
+  if (g.page) return head + g.page() + foot;
+  const p = progOf(g.id), found = foundOf(p), grid = gridOf(g, p.seed || 0);
   const nFound = g.words.filter(w => found[w]).length, done = nFound === g.words.length;
   const lines = g.words.map((w, i) => found[w] && Array.isArray(found[w]) ? seg(found[w][0], found[w][1], COLORS[i % COLORS.length]) : '').join('');
   const tap = S.ui.wsTap;
@@ -42,9 +52,7 @@ export function gamesPage() {
     ? `<span class="wc star" aria-hidden="true">★</span>`
     : `<button class="wc ${tap === i ? 'tap' : ''} ${S.ui.wsHint === i ? 'hint' : ''}" data-i="${i}" aria-label="${ch}, row ${Math.floor(i / N) + 1}, column ${i % N + 1}">${ch}</button>`).join('');
   const crew = people().map(x => ({ x, pr: progOf(g.id, x.id) })).filter(({ pr }) => Object.keys(foundOf(pr)).length || pr.best);
-  return `<div class="backrow"><button class="btn small" data-act="sub" data-sub="">‹ Back</button></div>
-    <h1 class="page-title" style="padding-top:0"><span>🎮</span>Games</h1>
-    <div class="chips">${GAMES.map(x => `<button class="${x.id === g.id ? 'on' : ''}" data-act="gamePick" data-g="${x.id}">${x.e} ${esc(x.t)}</button>`).join('')}<button disabled style="opacity:.55">✨ More soon</button></div>
+  return `${head}
     <section class="ws-card">
       <div class="ws-head"><span class="ws-star" aria-hidden="true">★</span><div><h2>KATSEYE</h2><p>Word search</p></div><span class="ws-star r" aria-hidden="true">★</span></div>
       <div class="ws-meta"><span><b>${nFound}</b> of ${g.words.length} found</span><span>${p.seed ? '🔀 Shuffled puzzle' : '🖨️ The printable'}</span>${p.started && !done ? `<span>⏱️ <b id="wsClock" data-from="${esc(p.started)}">${fmtMs(Date.now() - new Date(p.started))}</b></span>` : ''}</div>
@@ -58,7 +66,7 @@ export function gamesPage() {
     ${crew.length ? `<section class="card"><div class="ch"><span class="badge b-gold">🏆</span><h3>The crew</h3></div>${crew.map(({ x, pr }) => { const n = g.words.filter(w => foundOf(pr)[w]).length;
       const r = Number(pr.rounds) || 0;
       return `<div class="devrow">${avatar(x.id)}<span class="tt"><b>${esc(short(x.id))}${x.id === S.me.id ? ' (you)' : ''}</b><small>${n === g.words.length ? `All ${n} found ✓` : `${n} of ${g.words.length} found`}${r ? ` · finished ${r === 1 ? 'once' : r + ' times'}` : ''}${pr.best ? ` · best ${fmtMs(pr.best)}` : ''}</small></span>${r ? '<span class="st" style="font-size:22px">🏆</span>' : ''}</div>`; }).join('')}</section>` : ''}
-    ${isParent() ? '' : '<p class="note" style="text-align:center">Just for fun. Stars still come from your routine and jobs ⭐</p>'}`;
+    ${foot}`;
 }
 
 /* ---------- playing ---------- */

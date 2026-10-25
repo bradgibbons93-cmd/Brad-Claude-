@@ -8,6 +8,7 @@ import { isIOS } from './push.js';
 import { gamesPage, gamesTeaser } from './games.js';
 import { diaryPage, diaryQuickCard } from './diary.js';
 import { hqPage, hqHomeCard } from './hq.js';
+import { starReasonButtons, rewardsForDad, friendsPage } from './extras.js';
 
 const hasArt = k => (S.boot?.art || []).includes(k);
 const slotNow = () => { const h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'after' : 'bed'; };
@@ -307,16 +308,15 @@ function tabRewards() {
   if (isParent()) {
     const k = S.ui.rk && S.ui.rk !== 'me' ? S.ui.rk : selKid(), p = P(k);
     if (!p) return '<h1 class="page-title">Rewards</h1>';
-    const sister = kids().find(x => x.id !== k), R = rules(), next = strikesOf(k) + 1;
-    const reasons = ['Helped out', `Kind to ${sister ? sister.nick || sister.name : 'family'}`, 'Tidied up', 'Brave', 'Listened first time', 'Great effort', 'Homework done'];
+    const R = rules(), next = strikesOf(k) + 1;
     const pending = Store.col(`kids/${k}/redeemed`).filter(r => r.status === 'pending');
     return `<h1 class="page-title"><span>🏆</span>Rewards</h1>${kidChips(false)}${jarCard(k)}${paydayCards(k, true)}
       <section class="card"><div class="ch"><span class="badge b-gold">⭐</span><h3>Give ${esc(p.nick || p.name)} a star</h3></div>
-        <div class="reasons">${reasons.map(r => `<button data-act="giveStar" data-k="${esc(k)}" data-r="${esc(r)}" data-n="1">★ ${esc(r)}</button>`).join('')}<button data-act="giveStar" data-k="${esc(k)}" data-r="Big win" data-n="3">★ Big win +3</button></div></section>
+        ${starReasonButtons(k)}</section>
       <section class="card"><div class="ch"><span class="badge" style="background:var(--bad)">✖️</span><h3>Give a strike</h3><em>${next >= R.principalAt ? `#${next}: principal` : next % R.strikesPerStar === 0 ? `#${next} takes a ★` : `would be #${next}`}</em></div>
         <div class="reasons bad">${['Not listening', 'Unkind words', "Didn't tidy up", 'Screen time over'].map(r => `<button data-act="giveStrike" data-k="${esc(k)}" data-r="${esc(r)}">✕ ${esc(r)}</button>`).join('')}</div></section>
       ${pending.length ? `<section class="card"><div class="ch"><span class="badge b-pink">🎟️</span><h3>Her tickets</h3></div>${pending.map(r => `<div class="wait"><span class="e">${esc(r.emoji)}</span><span class="tt"><b>${esc(r.title)}</b><small>★${r.cost} · ${ago(r.at)}</small></span><span class="acts"><button class="btn blue small" data-act="redSet" data-k="${esc(k)}" data-id="${esc(r.id)}" data-s="done">Done</button><button class="btn small" data-act="redSet" data-k="${esc(k)}" data-id="${esc(r.id)}" data-s="declined">Not now</button></span></div>`).join('')}</section>` : ''}
-      ${strikesCard(k)}${logCard(k, true)}`;
+      ${rewardsForDad(k)}${strikesCard(k)}${logCard(k, true)}`;
   }
   const me = S.me.id;
   return `<h1 class="page-title"><span>🏆</span>My Rewards</h1>${principalCard(me)}${jarCard(me)}${paydayCards(me, false)}${trailCard(me)}${shopCard(me)}${strikesCard(me)}${logCard(me, false)}`;
@@ -325,12 +325,12 @@ function tabRewards() {
 /* ---------- Family ---------- */
 function famChips() {
   const sub = S.sub || 'cal';
-  const list = [['cal', '📅', 'Calendar'], ['week', '🧭', isParent() ? "Girls' week" : 'My week'], ['notes', '💬', 'Notes'], ['ideas', '💡', 'Ideas']];
+  const list = [['cal', '📅', 'Calendar'], ['week', '🧭', isParent() ? "Girls' week" : 'My week'], ['notes', '💬', 'Notes'], ['ideas', '💡', 'Ideas'], ...(isParent() ? [['friends', '🧸', 'Friends']] : [])];
   return `<div class="chips">${list.map(([id, e, t]) => `<button class="${sub === id ? 'on' : ''}" data-act="sub" data-sub="${id}">${e} ${t}</button>`).join('')}</div>`;
 }
 function tabFamily() {
   const sub = S.sub || 'cal';
-  const body = sub === 'week' ? (isParent() ? girlsWeek() : myWeek(S.me.id)) : sub === 'notes' ? notesPage() : sub === 'ideas' ? ideasPage() : calPage();
+  const body = sub === 'week' ? (isParent() ? girlsWeek() : myWeek(S.me.id)) : sub === 'notes' ? notesPage() : sub === 'ideas' ? ideasPage() : sub === 'friends' && isParent() ? friendsPage() : calPage();
   return `<h1 class="page-title"><span>👨‍👧‍👧</span>Family</h1>${famChips()}${body}`;
 }
 
@@ -435,6 +435,7 @@ function tabMe() {
   if (S.sub === 'mine') return minePage(k);
   if (S.sub === 'planner') return plannerPage(k);
   if (S.sub === 'wish') return wishPage(k);
+  if (S.sub === 'friends') return friendsPage();
   const p = P(k), b = buddyOf(k);
   return `<div class="profile">${picEdit(k)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || '')}</p><p>⭐ ${starsOf(k)} · 🔥 ${streakOf(k)} days${b ? ` · ${esc(b.name)}` : ''}</p></div></div>
     <div class="tiles">
@@ -442,6 +443,7 @@ function tabMe() {
       <button class="c-pink" data-act="sub" data-sub="mine"><i>🎨</i><b>Make it mine</b><small>Picture, buddy, look</small></button>
       <button class="c-mint" data-act="sub" data-sub="planner"><i>🗓️</i><b>My Planner</b><small>${Store.col(`kids/${k}/plans`).filter(x => !x.done).length} to do</small></button>
       <button class="c-sun" data-act="sub" data-sub="wish"><i>🎁</i><b>Wishlist</b><small>${Store.col(`kids/${k}/wishlist`).length} wishes</small></button>
+      <button class="c-pink" data-act="sub" data-sub="friends"><i>🧸</i><b>My friends</b><small>${Store.col(`kids/${k}/friends`).length || 'Add'} ${Store.col(`kids/${k}/friends`).length === 1 ? 'friend' : Store.col(`kids/${k}/friends`).length ? 'friends' : 'a friend'}</small></button>
       <button class="c-lilac" data-act="sub" data-sub="games"><i>🎮</i><b>Games</b><small>KATSEYE word search</small></button>
       ${pushTile('c-blue')}
       <button class="c-mint" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
@@ -580,8 +582,8 @@ export function waitingItems() {
     items.push({ at: d.at, html: `<div class="wait"><span class="e">${esc(tk?.e || '🧹')}</span><span class="tt"><b>${esc(k.name)} did "${esc(tk?.t || 'a job')}"</b><small>yes gives her +${Number(d.stars) || 1} ★ · ${ago(d.at)}</small></span><span class="acts"><button class="btn good small" data-act="jobOk" data-id="${esc(d.id)}" data-ok="1">✓ Yes</button><button class="btn small" data-act="jobOk" data-id="${esc(d.id)}" data-ok="0">Not yet</button></span></div>` });
   }
   for (const i of Store.col('inbox').filter(x => !x.seen && x.kind !== 'payday')) {
-    const e = { strike: '⚠️', principal: '🏫', hug: '🤗', journal: '📓' }[i.kind] || '🔔';
-    const btn = i.kind === 'journal' ? `<button class="btn blue small" data-act="readPage" data-id="${esc(i.id)}">Read</button>` : i.kind === 'hug' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Hugged ✓</button>` : `<button class="btn ink small" data-act="seen" data-id="${esc(i.id)}">Seen</button>`;
+    const e = { strike: '⚠️', principal: '🏫', hug: '🤗', journal: '📓', playdate: '🧸' }[i.kind] || '🔔';
+    const btn = i.kind === 'journal' ? `<button class="btn blue small" data-act="readPage" data-id="${esc(i.id)}">Read</button>` : i.kind === 'hug' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Hugged ✓</button>` : i.kind === 'playdate' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Got it ✓</button>` : `<button class="btn ink small" data-act="seen" data-id="${esc(i.id)}">Seen</button>`;
     items.push({ at: i.at, html: `<div class="wait ${i.kind === 'strike' || i.kind === 'principal' ? 'warn' : ''}"><span class="e">${e}</span><span class="tt"><b>${esc(i.title)}</b><small>${esc(i.sub || '')} · ${ago(i.at)}</small></span>${btn}</div>` });
   }
   return items.sort((a, b) => String(b.at).localeCompare(String(a.at)));

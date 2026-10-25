@@ -89,6 +89,15 @@ describe("who writes what", () => {
     expect(checkWrite(dad, { path: "hq/pa/txns/x", set: { note: "Coles" } }, null).ok).toBe(false);
     expect(checkWrite(dad, { path: "hq/pa/txns/x", set: { note: "Coles", amount: -42.5, date: "2026-10-24" } }, null).ok).toBe(true);
   });
+  test("her friends: she and a parent can change them, her sister can't even see them", () => {
+    expect(readPath(ana, "kids/ana/friends/f1")).toBe("yes");
+    expect(readPath(dad, "kids/ana/friends/f1")).toBe("yes");
+    expect(readPath(bea, "kids/ana/friends/f1")).toBe("no");
+    expect(checkWrite(ana, { path: "kids/ana/friends/f1", set: { name: "Mia", e: "🦄" } }, null).ok).toBe(true);
+    expect(checkWrite(dad, { path: "kids/ana/friends/f1", set: { name: "Mia" } }, null).ok).toBe(true);
+    expect(checkWrite(bea, { path: "kids/ana/friends/f1", set: { name: "Mia" } }, null).ok).toBe(false);
+    expect(checkWrite(ana, { path: "kids/ana/friends/f1", set: { name: "   " } }, null).ok).toBe(false);
+  });
   test("settings and houses are a parent's call", () => {
     expect(checkWrite(ana, { path: "stays/2026-10-16", set: { home: "mum" } }, null).ok).toBe(false);
     expect(checkWrite(dad, { path: "stays/2026-10-16", set: { home: "mum" } }, null).ok).toBe(true);

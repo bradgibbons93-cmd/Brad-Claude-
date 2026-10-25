@@ -33,7 +33,12 @@ It runs as one small Bun server with Postgres, on Railway.
 - A diary (`diary/<person>/…`) only ever reaches its writer's own phones: not the girls, not another
   parent, and not anyone else's backup.
 - An HQ (`hq/<person>/…`) only ever reaches its owner's phones: not the girls, not another parent.
-- Games keep progress at `play/<person>/<game>`. Everyone can see how far the others got; only you can
+- A girl's friends (`kids/<id>/friends/…`) reach her and a parent only, never her sister. "Playdate?"
+  puts a request on Dad's Waiting for you (`askPlaydate`).
+- Dad's own reasons for a star are kept at `settings/starReasons`; the Spend or save rewards he can
+  change are `settings/rewards`, which the server also reads for what each costs.
+- Games keep progress at `play/<person>/<game>`: the KATSEYE word search, Memory match and Noughts &
+  crosses (`public/js/minigames.js`; the noughts & crosses rules and Yumi's moves are in `xo.js`). Everyone can see how far the others got; only you can
   move your own. Games never give stars. The puzzle logic is in `public/js/wordsearch.js` so the unit
   tests can check every word is on the printable and that every shuffle fits all twelve.
 

@@ -151,6 +151,11 @@ export function checkWrite(c: Ctx, op: WriteOp, old: any): Check {
       switch (col) {
         case "routine": case "plans": case "wishlist":
           return own || parent ? ok(op.del ? undefined : stamp(next)) : no("not_yours");
+        /* Her friends: she and a parent can add or change them; her sister never even receives them. */
+        case "friends":
+          if (!own && !parent) return no("not_yours");
+          if (next) { next.name = String(next.name || "").trim().slice(0, 40); if (!next.name) return no("needs_a_name"); }
+          return ok(op.del ? undefined : stamp(next));
         case "journal":
           if (!own) return no("journal_is_private");
           if (next) { next.shared = next.shared === true; next.body = String(next.body || "").slice(0, 4000); }

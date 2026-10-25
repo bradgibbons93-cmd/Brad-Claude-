@@ -191,6 +191,19 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
     });
   },
 
+  /* She'd like a playdate with a friend from her list: it goes on Dad's "Waiting for you" and his lock screen. */
+  async askPlaydate(me, b) {
+    if (me.role !== "kid") return fail("kids_only");
+    const id = String(b.friend || "");
+    if (!/^[A-Za-z0-9_@~.-]{1,80}$/.test(id)) return fail("bad_friend");
+    const f = await getDoc(`kids/${me.id}/friends/${id}`);
+    if (!f) return fail("bad_friend");
+    const when = String(b.when || "").replace(/\s+/g, " ").trim().slice(0, 60);
+    await putDoc(`kids/${me.id}/friends/${id}`, { ...f, askedAt: iso() }, me.id);
+    await addInbox({ kind: "playdate", kid: me.id, ref: id, title: `${await nameOf(me.id)} would love a playdate with ${String(f.name).slice(0, 40)}`, sub: when ? `When: ${when}` : "She asked from her friends list" }, "🧸");
+    return { ok: true };
+  },
+
   async giveStrike(me, b) {
     if (me.role !== "parent") return fail("parent_only");
     if (!(await mustBeKid(b.kid))) return fail("bad_kid");

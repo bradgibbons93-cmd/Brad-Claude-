@@ -6,6 +6,7 @@ import { viewApp } from './views.js';
 import { ROOM_ACTIONS, FAMILY_ACTIONS, DAD_ACTIONS, EXTRA_ACTIONS, MORE_ACTIONS } from './actions.js';
 import { swReady, pushSync, refreshPush } from './push.js';
 import { GAME_ACTIONS } from './games.js';
+import { G2_ACTIONS } from './games2.js';
 import { MINI_ACTIONS } from './minigames.js';
 import { DIARY_ACTIONS } from './diary.js';
 import { HQ_ACTIONS } from './hq.js';
@@ -89,7 +90,7 @@ const NAV = {
   closeSheet() { closeSheet(); },
   pick(el) { el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el)); Snd.tick(); },
 };
-const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...MORE_ACTIONS, ...GAME_ACTIONS, ...MINI_ACTIONS, ...DIARY_ACTIONS, ...HQ_ACTIONS, ...EXTRA2_ACTIONS, ...NAV };
+const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...MORE_ACTIONS, ...GAME_ACTIONS, ...MINI_ACTIONS, ...G2_ACTIONS, ...DIARY_ACTIONS, ...HQ_ACTIONS, ...EXTRA2_ACTIONS, ...NAV };
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]');

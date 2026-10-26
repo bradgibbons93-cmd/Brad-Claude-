@@ -1,7 +1,7 @@
 /* Every screen once you're signed in: Home, Routines, Rewards, Family and Me (Settings for a parent).
    Bright and warm, big icons, and a gold star next to everything you can earn. */
 import { esc, Store, today, ymd, parseYmd, addDays, startOfWeek, DOW, DOWL, MON, MONL, ago, byAtDesc, fmtShort, fmtTime, Snd } from './core.js';
-import { S, P, people, kids, avatar, short, nick, famName, BUDDIES, THEMES, ACCENTS, MOODS, HARD_MOODS, FOODS, SLOTS, JOURNAL_PROMPTS, COVERS, PLAN_COLORS,
+import { S, P, people, kids, avatar, picOf, accentOf, accentSoftOf, short, nick, famName, BUDDIES, THEMES, ACCENTS, MOODS, HARD_MOODS, FOODS, SLOTS, JOURNAL_PROMPTS, COVERS, PLAN_COLORS,
   IDEA_FILTERS, homeFor, homeName, nextSwitch, roster, places, placeOf, rhythm, routineOf, dayOf, routineStats, moodToday, starsOf, strikesOf,
   streakSet, rewardsList, TRAIL_REWARDS, ideasList, jobsFor, doneBy, jobPending, rules, weekDays, isParent, isKid, buddyOf, buddyImg } from './model.js';
 import { isIOS } from './push.js';
@@ -38,6 +38,27 @@ function hero() {
   return `<header class="hero">${hasArt('family') ? '<img class="bg" src="/art/family" alt="">' : ''}${sparks}
     <div class="hero-top"><span class="brand"><i>★</i> yumi · ${esc(famName())}</span><span class="datepill">📅 ${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}</span>${isParent() ? `<button class="bell" data-act="openInbox" aria-label="${w} waiting for you">🔔${w ? `<b>${w}</b>` : ''}</button>` : ''}</div>
     <div class="hero-txt"><h1><span class="sun">${d.getHours() < 17 ? '☀️' : '🌙'}</span><span>${greeting()},<br>${esc(me.role === 'parent' ? me.name : me.nick || me.name)}!</span></h1><p>A happy family makes a bright day 💗</p></div></header>`;
+}
+
+/* A kid's Home: the screen is about her. Her own picture from the family art floats as a cutout
+   (a transparent one if she has it, else her usual picture), with one compact box to leave a note or chat. */
+function cutoutOf(id) {
+  const p = P(id), a = p?.art || {}, key = a.cutout || a.full || a.body || a.hero;
+  return key ? `/art/${key}` : picOf(id);
+}
+function focusHero() {
+  const me = P(S.me.id), d = new Date(), name = me.nick || me.name, src = cutoutOf(S.me.id), rs = routineStats(S.me.id);
+  const frac = rs.total ? rs.done / rs.total : 0;
+  return `<header class="focus" style="--ac:${accentOf(S.me.id)};--acs:${accentSoftOf(S.me.id)}">
+    <span class="spark" style="left:8%;top:20%">★</span><span class="spark" style="right:10%;top:14%;animation-delay:.7s">★</span><span class="spark" style="right:30%;top:60%;animation-delay:1.3s">✦</span>
+    <div class="hero-top"><span class="brand"><i>★</i> yumi · ${esc(famName())}</span><span class="datepill">📅 ${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}</span></div>
+    <div class="focus-body"><div class="focus-txt"><p>${greeting()},</p><h1>${esc(name)}!</h1>
+      <button class="fstat" data-act="tab" data-tab="rewards">⭐ <b>${starsOf(S.me.id)}</b> stars</button>${stars5(frac)}<small>${rs.total ? `${rs.done}/${rs.total} done today` : 'A fresh day'}</small></div>
+      <div class="focus-pic">${src ? `<img class="cut" src="${esc(src)}" alt="${esc(name)}">` : `<span class="cut ph">${esc(name[0])}</span>`}<i class="shadow"></i></div></div></header>`;
+}
+function quickBox() {
+  return `<section class="qbox" aria-label="Quick add and chat"><div class="qrow"><input id="fbText" type="text" maxlength="280" placeholder="Write a note or say hi…" aria-label="Write a note or say hi" enterkeyhint="send"><button class="btn solid" data-act="focusSend" aria-label="Send">➤</button></div>
+    <div class="qchips"><button data-act="taskNew">✅ Add a task</button><button data-act="timerOpen">⏱️ Timer</button><button data-act="goNotes">💬 Chat</button></div></section>`;
 }
 
 function personProgress(id) {
@@ -187,7 +208,7 @@ function tabHome() {
       ${w.length ? `<section class="card" id="waiting"><div class="ch"><span class="badge b-pink">🔔</span><h3>Waiting for you</h3><em>${w.length}</em></div>${w.map(x => x.html).join('')}</section>` : ''}
       ${quickButtons()}${diaryQuickCard()}${girlsStarsCard()}${dadRoutineCard()}${notesCard()}${todayCard()}${gamesTeaser()}`;
   }
-  return `${hero()}${peopleCards()}${principalCard(me)}${pushCard()}${buddyCard(me)}
+  return `${focusHero()}${quickBox()}${principalCard(me)}${pushCard()}${buddyCard(me)}${peopleCards()}
     ${routineCard(me)}
     <div class="duo"><div class="col">${starsCard(me)}</div><div class="col">${quickButtons()}${notesCard(true)}</div></div>
     ${moodCard(me)}${gamesTeaser()}${todayCard()}`;

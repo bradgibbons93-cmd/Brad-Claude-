@@ -407,6 +407,12 @@ export const EXTRA_ACTIONS = {
   goCal() { go('family', 'cal'); },
   goGirlsWeek() { go('family', 'week'); },
   pickKid(el) { S.ui.rk = el.dataset.k; S.ui.slot = null; S.ui.editRoutine = null; Snd.tap(); S.render(); },
+  async focusSend(el) {
+    const box = document.getElementById('fbText'), text = (box?.value || '').trim();
+    if (!text) { box?.focus(); Snd.err(); return; }
+    box.value = ''; Confetti.from(el, 24); Snd.pop();
+    await setDoc('feed/' + uid(), { kid: S.me.id, text }); toast('Posted for the family 💗');
+  },
   noteNew() {
     openSheet(`<h2 id="sheetTitle">💗 Family note</h2><div class="form"><textarea id="noteText" class="hand" rows="4" maxlength="280" placeholder="Be kind, work hard, have fun!" autofocus></textarea>
       <div class="actions"><button class="btn" data-act="closeSheet">Cancel</button><button class="btn solid" data-act="noteSend">Post it</button></div></div>`);

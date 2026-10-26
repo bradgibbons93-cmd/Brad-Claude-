@@ -13,16 +13,18 @@ const shuffle = list => { const a = list.slice(); for (let i = a.length - 1; i >
 const fmtMs = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 /* ---------- Memory match ---------- */
-/* KATSEYE member cards. A photo dropped in public/img/katseye/<id>.webp shows on the card; until then
-   (or if it can't load) the card shows her name on her own colour, so the game always works. */
-export const MEMBERS = { sophia: ['Sophia', '#FF5FA2'], manon: ['Manon', '#A35BFF'], daniela: ['Daniela', '#3FA9F5'], lara: ['Lara', '#22C08A'], megan: ['Megan', '#FFB020'], yoonchae: ['Yoonchae', '#FF7A45'] };
-const face = v => MEMBERS[v] ? `<span class="mp" style="--c:${MEMBERS[v][1]}"><b>${MEMBERS[v][0][0]}</b><img src="/img/katseye/${v}.webp" alt="" loading="lazy"><small>${MEMBERS[v][0]}</small></span>` : esc(v);
+/* KATSEYE photos from the user-supplied quiz reference are cropped into local card assets. */
+const PHOTO_IDS = ['member1', 'member2', 'member3', 'member4', 'member5', 'member6', 'group1', 'group2'];
+const PHOTO_LABELS = ['KATSEYE photo 1', 'KATSEYE photo 2', 'KATSEYE photo 3', 'KATSEYE photo 4', 'KATSEYE photo 5', 'KATSEYE photo 6', 'KATSEYE group photo 1', 'KATSEYE group photo 2'];
+const PHOTO_COLORS = ['#FF5FA2', '#A35BFF', '#3FA9F5', '#22C08A', '#FFB020', '#FF7A45', '#E040FB', '#00B8D4'];
+export const MEMBERS = Object.fromEntries(PHOTO_IDS.map((id, i) => [id, [PHOTO_LABELS[i], PHOTO_COLORS[i]]]));
+const face = v => MEMBERS[v] ? `<span class="mp" style="--c:${MEMBERS[v][1]}"><b>${PHOTO_IDS.indexOf(v) + 1}</b><img src="/img/katseye/${v}.webp" alt="" loading="lazy"><small>KATSEYE</small></span>` : esc(v);
 const label = v => MEMBERS[v]?.[0] || v;
 document.addEventListener('error', e => { if (e.target?.matches?.('.mp img')) e.target.remove(); }, true);
-const SETS = { members: { t: 'Members', e: [...Object.keys(MEMBERS), '💜', '⭐'] }, katseye: { t: 'KATSEYE', e: ['💜', '⭐', '🎤', '🎧', '💃', '🦋', '💿', '🌈'] }, animals: { t: 'Animals', e: ['🐶', '🐱', '🐰', '🦊', '🐼', '🐨', '🦄', '🐸'] } };
+const SETS = { members: { t: 'KATSEYE photos', e: PHOTO_IDS }, katseye: { t: 'KATSEYE', e: ['💜', '⭐', '🎤', '🎧', '💃', '🦋', '💿', '🌈'] }, animals: { t: 'Animals', e: ['🐶', '🐱', '🐰', '🦊', '🐼', '🐨', '🦄', '🐸'] } };
 function newMemory(size = 12, set = 'members') {
-  const n = size / 2, mem6 = Object.keys(MEMBERS);
-  const pick = set === 'members' ? (n <= 6 ? shuffle(mem6).slice(0, n) : [...mem6, ...shuffle(SETS.members.e.slice(6)).slice(0, n - 6)]) : shuffle(SETS[set].e).slice(0, n);
+  const n = size / 2;
+  const pick = set === 'members' ? shuffle(PHOTO_IDS).slice(0, n) : shuffle(SETS[set].e).slice(0, n);
   return { deck: shuffle([...pick, ...pick]), open: [], matched: [], moves: 0, started: null, size, set, lock: false };
 }
 const mem = () => (S.ui.mem ||= newMemory());

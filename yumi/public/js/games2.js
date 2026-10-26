@@ -87,7 +87,7 @@ export function dayPage() {
 /* ---------- 6. KATSEYE quiz ---------- */
 export const QUIZ = [
   { q: 'How many members are in KATSEYE?', a: ['4', '5', '6', '8'], c: 2 },
-  { q: 'What do KATSEYE fans call themselves?', a: ['Eyeconic', 'Army', 'Blinks', 'Swifties'], c: 0 },
+  { q: 'What do KATSEYE fans call themselves?', a: ['EYEKONS', 'Army', 'Blinks', 'Swifties'], c: 0 },
   { q: 'Which of these is a KATSEYE member?', a: ['Sophia', 'Taylor', 'Olivia', 'Zoe'], c: 0 },
   { q: 'Which of these is a KATSEYE song?', a: ['Gnarly', 'Sparkles', 'Rainbow Road', 'Sunny Day'], c: 0 },
   { q: 'Which of these is a KATSEYE song?', a: ['Cartwheel', 'Touch', 'Pancakes', 'Tiptoe'], c: 1 },

@@ -41,6 +41,12 @@ It runs as one small Bun server with Postgres, on Railway.
   crosses (`public/js/minigames.js`; the noughts & crosses rules and Yumi's moves are in `xo.js`). Everyone can see how far the others got; only you can
   move your own. Games never give stars. The puzzle logic is in `public/js/wordsearch.js` so the unit
   tests can check every word is on the printable and that every shuffle fits all twelve.
+- Good & hard days (`kids/<id>/together/<YYYY-MM-DD>`): each girl checks in on how a day went with
+  Dad's partner and her kids (great to really hard, or didn't see them, plus what happened). Only she
+  writes it; Dad reads it; her sister never receives it. Ticking "I'd like to talk to Dad" puts it on
+  his Waiting for you once (`togetherTalk`). The graph and the words under it come from
+  `public/js/togethermath.js`: "mostly hard" needs more hard days than good ones across at least three
+  different weeks, so one argument can't make it. Who the question is about is `settings/together`.
 
 ## HQ and the iPhone widget
 

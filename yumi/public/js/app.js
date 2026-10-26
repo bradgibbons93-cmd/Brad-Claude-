@@ -10,6 +10,7 @@ import { MINI_ACTIONS } from './minigames.js';
 import { DIARY_ACTIONS } from './diary.js';
 import { HQ_ACTIONS } from './hq.js';
 import { EXTRA2_ACTIONS } from './extras.js';
+import { TOGETHER_ACTIONS } from './together.js';
 
 const TABS = ['home', 'routines', 'rewards', 'family', 'hq', 'me'];
 
@@ -89,7 +90,7 @@ const NAV = {
   closeSheet() { closeSheet(); },
   pick(el) { el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el)); Snd.tick(); },
 };
-const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...MORE_ACTIONS, ...GAME_ACTIONS, ...MINI_ACTIONS, ...DIARY_ACTIONS, ...HQ_ACTIONS, ...EXTRA2_ACTIONS, ...NAV };
+const ACTIONS = { ...DOOR_ACTIONS, ...ROOM_ACTIONS, ...FAMILY_ACTIONS, ...DAD_ACTIONS, ...EXTRA_ACTIONS, ...MORE_ACTIONS, ...GAME_ACTIONS, ...MINI_ACTIONS, ...DIARY_ACTIONS, ...HQ_ACTIONS, ...EXTRA2_ACTIONS, ...TOGETHER_ACTIONS, ...NAV };
 
 document.addEventListener('click', async e => {
   const el = e.target.closest('[data-act]');

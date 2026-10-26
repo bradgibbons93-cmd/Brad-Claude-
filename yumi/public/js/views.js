@@ -9,6 +9,7 @@ import { gamesPage, gamesTeaser } from './games.js';
 import { diaryPage, diaryQuickCard } from './diary.js';
 import { hqPage, hqHomeCard } from './hq.js';
 import { starReasonButtons, rewardsForDad, friendsPage } from './extras.js';
+import { togetherCard, togetherPage, togetherDad } from './together.js';
 
 const hasArt = k => (S.boot?.art || []).includes(k);
 const slotNow = () => { const h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'after' : 'bed'; };
@@ -190,7 +191,7 @@ function tabHome() {
   return `${hero()}${peopleCards()}${principalCard(me)}${pushCard()}${buddyCard(me)}
     ${routineCard(me)}
     <div class="duo"><div class="col">${starsCard(me)}</div><div class="col">${quickButtons()}${notesCard(true)}</div></div>
-    ${moodCard(me)}${gamesTeaser()}${todayCard()}`;
+    ${moodCard(me)}${togetherCard(me)}${gamesTeaser()}${todayCard()}`;
 }
 
 /* Asks once (until dismissed) to turn on lock-screen notifications. */
@@ -325,12 +326,12 @@ function tabRewards() {
 /* ---------- Family ---------- */
 function famChips() {
   const sub = S.sub || 'cal';
-  const list = [['cal', '📅', 'Calendar'], ['week', '🧭', isParent() ? "Girls' week" : 'My week'], ['notes', '💬', 'Notes'], ['ideas', '💡', 'Ideas'], ...(isParent() ? [['friends', '🧸', 'Friends']] : [])];
+  const list = [['cal', '📅', 'Calendar'], ['week', '🧭', isParent() ? "Girls' week" : 'My week'], ['notes', '💬', 'Notes'], ['ideas', '💡', 'Ideas'], ...(isParent() ? [['together', '💞', 'Together'], ['friends', '🧸', 'Friends']] : [])];
   return `<div class="chips">${list.map(([id, e, t]) => `<button class="${sub === id ? 'on' : ''}" data-act="sub" data-sub="${id}">${e} ${t}</button>`).join('')}</div>`;
 }
 function tabFamily() {
   const sub = S.sub || 'cal';
-  const body = sub === 'week' ? (isParent() ? girlsWeek() : myWeek(S.me.id)) : sub === 'notes' ? notesPage() : sub === 'ideas' ? ideasPage() : sub === 'friends' && isParent() ? friendsPage() : calPage();
+  const body = sub === 'week' ? (isParent() ? girlsWeek() : myWeek(S.me.id)) : sub === 'notes' ? notesPage() : sub === 'ideas' ? ideasPage() : sub === 'friends' && isParent() ? friendsPage() : sub === 'together' && isParent() ? togetherDad() : calPage();
   return `<h1 class="page-title"><span>👨‍👧‍👧</span>Family</h1>${famChips()}${body}`;
 }
 
@@ -436,6 +437,7 @@ function tabMe() {
   if (S.sub === 'planner') return plannerPage(k);
   if (S.sub === 'wish') return wishPage(k);
   if (S.sub === 'friends') return friendsPage();
+  if (S.sub === 'together') return togetherPage();
   const p = P(k), b = buddyOf(k);
   return `<div class="profile">${picEdit(k)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || '')}</p><p>⭐ ${starsOf(k)} · 🔥 ${streakOf(k)} days${b ? ` · ${esc(b.name)}` : ''}</p></div></div>
     <div class="tiles">
@@ -444,7 +446,8 @@ function tabMe() {
       <button class="c-mint" data-act="sub" data-sub="planner"><i>🗓️</i><b>My Planner</b><small>${Store.col(`kids/${k}/plans`).filter(x => !x.done).length} to do</small></button>
       <button class="c-sun" data-act="sub" data-sub="wish"><i>🎁</i><b>Wishlist</b><small>${Store.col(`kids/${k}/wishlist`).length} wishes</small></button>
       <button class="c-pink" data-act="sub" data-sub="friends"><i>🧸</i><b>My friends</b><small>${Store.col(`kids/${k}/friends`).length || 'Add'} ${Store.col(`kids/${k}/friends`).length === 1 ? 'friend' : Store.col(`kids/${k}/friends`).length ? 'friends' : 'a friend'}</small></button>
-      <button class="c-lilac" data-act="sub" data-sub="games"><i>🎮</i><b>Games</b><small>KATSEYE word search</small></button>
+      <button class="c-pink" data-act="sub" data-sub="together"><i>💞</i><b>Good &amp; hard days</b><small>${Store.col(`kids/${k}/together`).length ? 'See your weeks' : 'Check in each day'}</small></button>
+      <button class="c-lilac" data-act="sub" data-sub="games"><i>🎮</i><b>Games</b><small>Word search, memory, noughts &amp; crosses</small></button>
       ${pushTile('c-blue')}
       <button class="c-mint" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
       <button class="c-ocean" data-act="signOut"><i>👋</i><b>Sign out</b><small>Your code brings you back</small></button>
@@ -506,10 +509,11 @@ function parentMenu() {
   return `<div class="profile">${picEdit(S.me.id)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || 'Parent')}</p><p>🔥 ${Number(p.pub?.streak) || 0} day streak</p></div></div>
     <div class="tiles">
       <button class="c-pink" data-act="sub" data-sub="diary"><i>📔</i><b>My diary</b><small>${Store.col(`diary/${S.me.id}`).length} private notes</small></button>
-      <button class="c-lilac" data-act="sub" data-sub="games"><i>🎮</i><b>Games</b><small>KATSEYE word search</small></button>
+      <button class="c-lilac" data-act="sub" data-sub="games"><i>🎮</i><b>Games</b><small>Word search, memory, noughts &amp; crosses</small></button>
       <button class="c-blue" data-act="sub" data-sub="phones"><i>📱</i><b>Phones</b><small>Add a phone, codes</small></button>
       <button class="c-blue" data-act="sub" data-sub="settings"><i>🏠</i><b>Houses &amp; goal</b><small>Pattern, places, family goal</small></button>
       <button class="c-mint" data-act="goGirlsWeek"><i>🧭</i><b>Girls' week</b><small>What they'd like</small></button>
+      <button class="c-pink" data-act="tgDad"><i>💞</i><b>Good &amp; hard days</b><small>The girls' weeks, as a graph</small></button>
       <a class="c-sun" href="/api/export" download><i>💾</i><b>Backup</b><small>Download everything</small></a>
       ${pushTile('c-pink')}
       <button class="c-mint" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
@@ -582,8 +586,8 @@ export function waitingItems() {
     items.push({ at: d.at, html: `<div class="wait"><span class="e">${esc(tk?.e || '🧹')}</span><span class="tt"><b>${esc(k.name)} did "${esc(tk?.t || 'a job')}"</b><small>yes gives her +${Number(d.stars) || 1} ★ · ${ago(d.at)}</small></span><span class="acts"><button class="btn good small" data-act="jobOk" data-id="${esc(d.id)}" data-ok="1">✓ Yes</button><button class="btn small" data-act="jobOk" data-id="${esc(d.id)}" data-ok="0">Not yet</button></span></div>` });
   }
   for (const i of Store.col('inbox').filter(x => !x.seen && x.kind !== 'payday')) {
-    const e = { strike: '⚠️', principal: '🏫', hug: '🤗', journal: '📓', playdate: '🧸' }[i.kind] || '🔔';
-    const btn = i.kind === 'journal' ? `<button class="btn blue small" data-act="readPage" data-id="${esc(i.id)}">Read</button>` : i.kind === 'hug' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Hugged ✓</button>` : i.kind === 'playdate' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Got it ✓</button>` : `<button class="btn ink small" data-act="seen" data-id="${esc(i.id)}">Seen</button>`;
+    const e = { strike: '⚠️', principal: '🏫', hug: '🤗', journal: '📓', playdate: '🧸', together: '💞' }[i.kind] || '🔔';
+    const btn = i.kind === 'journal' ? `<button class="btn blue small" data-act="readPage" data-id="${esc(i.id)}">Read</button>` : i.kind === 'hug' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Hugged ✓</button>` : i.kind === 'playdate' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Got it ✓</button>` : i.kind === 'together' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">We talked ✓</button>` : `<button class="btn ink small" data-act="seen" data-id="${esc(i.id)}">Seen</button>`;
     items.push({ at: i.at, html: `<div class="wait ${i.kind === 'strike' || i.kind === 'principal' ? 'warn' : ''}"><span class="e">${e}</span><span class="tt"><b>${esc(i.title)}</b><small>${esc(i.sub || '')} · ${ago(i.at)}</small></span>${btn}</div>` });
   }
   return items.sort((a, b) => String(b.at).localeCompare(String(a.at)));

@@ -204,6 +204,22 @@ export const ACTIONS: Record<string, (me: Me, b: any) => Promise<R>> = {
     return { ok: true };
   },
 
+  /* She ticked "I'd like to talk to Dad" on a good & hard days check-in. Once per day, whatever she changes after. */
+  async togetherTalk(me, b) {
+    if (me.role !== "kid") return fail("kids_only");
+    const day = String(b.day || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return fail("bad_date");
+    const path = `kids/${me.id}/together/${day}`, d = await getDoc(path);
+    if (!d?.talk) return fail("not_asked");
+    if (d.talkSent) return { ok: true, already: true };
+    await putDoc(path, { ...d, talkSent: iso() }, me.id);
+    const label = String((await getDoc("settings/together"))?.label || "").trim().slice(0, 40) || "Riannon and her kids";
+    const how = d.feel === "awful" ? "a really hard day" : d.feel === "hard" ? "a hard day" : "a day she wants to talk about";
+    const note = String(d.note || "").trim(), tags = Array.isArray(d.tags) ? d.tags.slice(0, 3).join(", ") : "";
+    await addInbox({ kind: "together", kid: me.id, ref: day, title: `${await nameOf(me.id)} had ${how} with ${label}`, sub: note ? `“${note.slice(0, 120)}” · she'd like to talk` : tags ? `${tags} · she'd like to talk` : "She'd like to talk about it" }, "💞");
+    return { ok: true };
+  },
+
   async giveStrike(me, b) {
     if (me.role !== "parent") return fail("parent_only");
     if (!(await mustBeKid(b.kid))) return fail("bad_kid");

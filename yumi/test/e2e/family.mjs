@@ -114,8 +114,10 @@ await lilly.waitForTimeout(500);
 const xs = (await get(lilly, '/sync?since=0')).docs.find(d => d.path === 'play/lilly/xo');
 ok(xs && (Number(xs.data.wins) || 0) + (Number(xs.data.draws) || 0) + (Number(xs.data.losses) || 0) === 1, 'the result goes on her score');
 await lilly.click('[data-act="xoMode"][data-m="two"]');
-await lilly.click('.xo .xc[data-i="0"]'); await lilly.click('.xo .xc[data-i="4"]');
-ok((await lilly.locator('.xo .xc[data-i="0"]').textContent()) === '❌' && (await lilly.locator('.xo .xc[data-i="4"]').textContent()) === '⭕', '2 players: cross then nought, passing the phone');
+await lilly.click('.xo .xc[data-i="0"]'); await lilly.waitForFunction(() => /⭕'s turn/.test(document.querySelector('.xo-status')?.textContent || ''));
+await lilly.click('.xo .xc[data-i="4"]'); await lilly.waitForTimeout(300);
+const cells = await lilly.locator('.xo .xc').allTextContents();
+ok(cells[0] === '❌' && cells[4] === '⭕', '2 players: cross then nought, passing the phone', JSON.stringify({ cells, status: await lilly.locator('.xo-status').textContent(), modes: await lilly.locator('[data-act="xoMode"]').evaluateAll(b => b.map(x => x.className)) }));
 await lilly.screenshot({ path: OUT + 'yumi-xo.png' });
 
 console.log('Friends');

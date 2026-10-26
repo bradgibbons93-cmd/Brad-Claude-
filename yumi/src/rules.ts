@@ -13,6 +13,7 @@ const isParent = (c: Ctx) => c.me.role === "parent";
 /* A parent's own HQ (to-dos, money, subscriptions), at hq/<person>/<collection>/<id>. */
 export const HQ_COLS = new Set(["tasks", "txns", "subs", "rules", "settings"]);
 const PRIS = new Set(["now", "next", "later"]);
+const TOGETHER_FEELS = new Set(["great", "good", "okay", "hard", "awful", "none"]);
 
 /* Field limits for anything a kid writes. Parents get the same limits; it keeps rows small. */
 const MAX_DOC_BYTES = 12000;
@@ -166,6 +167,17 @@ export function checkWrite(c: Ctx, op: WriteOp, old: any): Check {
           return ok(op.del ? undefined : stamp(next));
         case "vault":
           return parent ? ok(op.del ? undefined : stamp(next)) : no("parent_only");
+        /* Good & hard days: her own words about a day, so only she writes them. Dad reads; her sister can't. */
+        case "together":
+          if (!own) return no("only_she_checks_in");
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(p[3])) return no("bad_date");
+          if (next) {
+            if (!TOGETHER_FEELS.has(next.feel)) return no("bad_feel");
+            next.tags = Array.isArray(next.tags) ? next.tags.filter((t: any) => typeof t === "string" && t.trim()).map((t: string) => t.slice(0, 30)).slice(0, 8) : [];
+            next.note = String(next.note || "").slice(0, 300);
+            next.talk = next.talk === true;
+          }
+          return ok(op.del ? undefined : stamp(next));
         default:
           return no("use_actions");
       }

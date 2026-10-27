@@ -5,6 +5,7 @@ import { readPath, canRead, checkWrite, type WriteOp } from "./rules";
 import { ACTIONS, afterWrite, refreshAll, remindTick, DEFAULT_REWARDS, PAYDAY_STARS, PAYDAY_DOLLARS, STRIKES_PER_STAR, PRINCIPAL_AT } from "./stars";
 import * as push from "./push";
 import { runImport, importFromBody, importArtBundle } from "./importer";
+import * as hq from "./hq";
 
 const PORT = Number(process.env.PORT || 8080);
 const PUBLIC = join(import.meta.dir, "..", "public");
@@ -60,6 +61,13 @@ function sameOrigin(req: Request, url: URL) {
     const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || url.host;
     return new URL(o).host === host;
   } catch { return false; }
+}
+
+/* The address phones reach this server on, for the widget script. Railway passes it in the forwarded headers. */
+function originOf(req: Request, url: URL) {
+  const proto = (req.headers.get("x-forwarded-proto") || url.protocol.replace(":", "")).split(",")[0].trim();
+  const host = (req.headers.get("x-forwarded-host") || req.headers.get("host") || url.host).split(",")[0].trim();
+  return (proto === "http" ? "http" : "https") + "://" + (/^[A-Za-z0-9.-]+(:\d+)?$/.test(host) ? host : url.host);
 }
 
 async function familyName() {
@@ -210,6 +218,25 @@ async function api(req: Request, url: URL, server: any): Promise<Response> {
     return json({ ok: true, person: r.person }, 200, withCookies(cookies));
   }
 
+  /* The iPhone widget has no cookie, only its own key (hq.ts). A wrong, old or turned-off key is a 404. */
+  const wm = /^\/hq\/w\/([A-Za-z0-9_-]{30,80})(\/task|\/done)?$/.exec(path);
+  if (wm) {
+    const p = await hq.personForKey(wm[1]);
+    if (!p) return json({ ok: false, error: "not_found" }, 404);
+    if (!wm[2] && req.method === "GET") return json(await hq.summary(p.id, url.searchParams.get("all") === "1"));
+    if (wm[2] && req.method === "POST") {
+      const b = await body(req, 20_000);
+      const r = wm[2] === "/task" ? await hq.addTask(p.id, { ...b, by: "widget" }) : await hq.setDone(p.id, b);
+      return json(r, r.ok ? 200 : 400);
+    }
+    return json({ ok: false, error: "not_found" }, 404);
+  }
+  /* The one-time move from the HQ page in Claude, locked with a 30-minute code the parent made in the app. */
+  if (path === "/hq/import" && req.method === "POST") {
+    const { status, ...r } = await hq.importHq(await body(req, 3_000_000)) as any;
+    return json(r, r.ok ? 200 : status || 400);
+  }
+
   const me = await auth.whoAmI(req);
   if (!me) return json({ ok: false, error: "signed_out" }, 401);
 
@@ -304,6 +331,15 @@ async function api(req: Request, url: URL, server: any): Promise<Response> {
   if (path === "/devices/forget" && req.method === "POST") {
     const b = await body(req);
     return json({ ok: await auth.forgetDevice(String(b.id || "")) });
+  }
+  /* HQ: the widget's key and the one-time code for bringing the HQ page across. Each parent has their own. */
+  if (path === "/hq/widget" && req.method === "GET") return json({ ok: true, ...(await hq.widgetState(me.id)) });
+  if (path === "/hq/widget" && req.method === "POST") return json({ ok: true, ...(await hq.newWidgetKey(me.id, originOf(req, url), me.name)) });
+  if (path === "/hq/widget/off" && req.method === "POST") { await hq.widgetOff(me.id); return json({ ok: true }); }
+  if (path === "/hq/import-code" && req.method === "POST") return json({ ok: true, ...(await hq.makeImportCode(me.id)) });
+  if (path === "/hq/import-mine" && req.method === "POST") {
+    const { status, ...r } = await hq.importMine(me.id, await body(req, 3_000_000)) as any;
+    return json(r, r.ok ? 200 : status || 400);
   }
   if (path === "/rewards" && req.method === "GET") return json({ ok: true, items: (await getDoc("settings/rewards"))?.items || DEFAULT_REWARDS });
   if (path === "/export" && req.method === "GET") {

@@ -10,6 +10,11 @@ type Ctx = { me: Me; kids: Set<string> };
 
 const isParent = (c: Ctx) => c.me.role === "parent";
 
+/* A parent's own HQ (to-dos, money, subscriptions), at hq/<person>/<collection>/<id>. */
+export const HQ_COLS = new Set(["tasks", "txns", "subs", "rules", "settings"]);
+const PRIS = new Set(["now", "next", "later"]);
+const TOGETHER_FEELS = new Set(["great", "good", "okay", "hard", "awful", "none"]);
+
 /* Field limits for anything a kid writes. Parents get the same limits; it keeps rows small. */
 const MAX_DOC_BYTES = 12000;
 
@@ -17,8 +22,12 @@ export function readPath(c: Ctx, path: string): Read {
   const p = path.split("/");
   switch (p[0]) {
     case "settings": case "people": case "feed": case "comments": case "events": case "stays":
-    case "tasks": case "taskDone": case "album": case "pub":
+    case "tasks": case "taskDone": case "album": case "pub": case "play":
       return "yes";
+    /* A diary is its writer's alone: not the girls, not another parent, not a backup made by anyone else. */
+    case "diary": return p[1] === c.me.id ? "yes" : "no";
+    /* So is an HQ: not the girls, and not another parent either, since it holds work and money. */
+    case "hq": return p[1] === c.me.id && isParent(c) ? "yes" : "no";
     case "notes": return isParent(c) ? "yes" : "cond";
     case "inbox": case "dad": return isParent(c) ? "yes" : "no";
     case "kids": {
@@ -50,7 +59,7 @@ export type Check = { ok: true; data?: any } | { ok: false; why: string };
 const ok = (data?: any): Check => ({ ok: true, data });
 const no = (why: string): Check => ({ ok: false, why });
 
-function clean(v: any, depth = 0): any {
+export function clean(v: any, depth = 0): any {
   if (v === null || typeof v === "boolean") return v;
   if (typeof v === "number") return Number.isFinite(v) ? v : null;
   if (typeof v === "string") return v.slice(0, 4000);
@@ -116,6 +125,24 @@ export function checkWrite(c: Ctx, op: WriteOp, old: any): Check {
       if (op.del) return ok();
       if (creating) return no("server_only");
       return ok(next);
+    case "diary":
+      if (p.length !== 3 || p[1] !== me) return no("diary_is_private");
+      if (next) next.text = String(next.text || "").slice(0, 4000);
+      return ok(op.del ? undefined : stamp(next));
+    case "hq":
+      if (!parent || p.length !== 4 || p[1] !== me || !HQ_COLS.has(p[2])) return no("hq_is_private");
+      if (next && p[2] === "tasks") {
+        next.title = String(next.title || "").slice(0, 300);
+        if (!next.title.trim()) return no("needs_a_title");
+        if (!PRIS.has(next.pri)) next.pri = "next";
+        next.done = next.done === true;
+      }
+      if (next && p[2] === "txns" && !Number.isFinite(next.amount)) return no("needs_an_amount");
+      return ok(op.del ? undefined : stamp(next));
+    /* Game progress: everyone can see how far the others got, only you can move your own. */
+    case "play":
+      if (p.length !== 3 || p[1] !== me) return no("not_yours");
+      return ok(op.del ? undefined : stamp(next));
     case "taskDone": case "pub":
       return no("use_actions");
     case "kids": {
@@ -125,6 +152,11 @@ export function checkWrite(c: Ctx, op: WriteOp, old: any): Check {
       switch (col) {
         case "routine": case "plans": case "wishlist":
           return own || parent ? ok(op.del ? undefined : stamp(next)) : no("not_yours");
+        /* Her friends: she and a parent can add or change them; her sister never even receives them. */
+        case "friends":
+          if (!own && !parent) return no("not_yours");
+          if (next) { next.name = String(next.name || "").trim().slice(0, 40); if (!next.name) return no("needs_a_name"); }
+          return ok(op.del ? undefined : stamp(next));
         case "journal":
           if (!own) return no("journal_is_private");
           if (next) { next.shared = next.shared === true; next.body = String(next.body || "").slice(0, 4000); }
@@ -135,6 +167,17 @@ export function checkWrite(c: Ctx, op: WriteOp, old: any): Check {
           return ok(op.del ? undefined : stamp(next));
         case "vault":
           return parent ? ok(op.del ? undefined : stamp(next)) : no("parent_only");
+        /* Good & hard days: her own words about a day, so only she writes them. Dad reads; her sister can't. */
+        case "together":
+          if (!own) return no("only_she_checks_in");
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(p[3])) return no("bad_date");
+          if (next) {
+            if (!TOGETHER_FEELS.has(next.feel)) return no("bad_feel");
+            next.tags = Array.isArray(next.tags) ? next.tags.filter((t: any) => typeof t === "string" && t.trim()).map((t: string) => t.slice(0, 30)).slice(0, 8) : [];
+            next.note = String(next.note || "").slice(0, 300);
+            next.talk = next.talk === true;
+          }
+          return ok(op.del ? undefined : stamp(next));
         default:
           return no("use_actions");
       }

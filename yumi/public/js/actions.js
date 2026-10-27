@@ -3,6 +3,7 @@ import { $, esc, Store, api, today, ymd, parseYmd, addDays, DOW, uid, nowIso, or
 import { S, P, people, kids, avatar, short, nick, MOODS, STAR_REASONS, STRIKE_REASONS, EVENT_EMOJI, STARTER_ROUTINE, JOURNAL_PROMPTS, STICKERS, WISH_EMOJI, COVERS, PLAN_COLORS,
   homeFor, places, roster, routineOf, dayOf, strikesOf, starsOf, rules, ideasList, isParent, isKid, rewardById } from './model.js';
 import { isIOS, standalone, pushStatus, turnOn, turnOff } from './push.js';
+import { starReasonButtons } from './extras.js';
 
 const kidOf = el => el?.dataset?.k || S.me.id;
 export const ROOM_ACTIONS = {
@@ -285,8 +286,7 @@ export const DAD_ACTIONS = {
     openSheet(j ? `<h2 id="sheetTitle">${esc(j.title || 'A page')}</h2><p class="lead">${esc(short(i.kid))} shared this · ${ago(j.at)}</p><article class="jp"><p>${esc(j.body)}</p></article><div class="form"><div class="actions"><button class="btn solid" data-act="closeSheet">Close</button></div></div>`
       : `<h2 id="sheetTitle">Page not shared any more</h2><p class="lead">She made this page private again.</p><div class="form"><div class="actions"><button class="btn" data-act="closeSheet">OK</button></div></div>`);
   },
-  quickStar() { const ks = kids(); kidsSheet('Give a star', `<div class="form">${ks.map(k => { const sister = ks.find(x => x.id !== k.id);
-    return `<p class="sec-title">${esc(k.name)}</p><div class="reasons">${STAR_REASONS.map(r => r === 'Kind to sister' && sister ? `Kind to ${sister.nick || sister.name}` : r).map(r => `<button data-act="giveStar" data-k="${esc(k.id)}" data-r="${esc(r)}" data-n="1" data-close="1">★ ${esc(r)}</button>`).join('')}<button data-act="giveStar" data-k="${esc(k.id)}" data-r="Big win" data-n="3" data-close="1">★ Big win +3</button></div>`; }).join('')}</div>`); },
+  quickStar() { kidsSheet('Give a star', `<div class="form">${kids().map(k => `<p class="sec-title">${esc(k.name)}</p>${starReasonButtons(k.id, true)}`).join('')}</div>`); },
   quickStrike() { kidsSheet('Give a strike', `<div class="form">${kids().map(k => { const n = strikesOf(k.id) + 1, R = rules();
     return `<p class="sec-title">${esc(k.name)} · ${n >= R.principalAt ? `strike ${n}: principal message` : n % R.strikesPerStar === 0 ? `strike ${n} takes a star` : `would be strike ${n}`}</p><div class="reasons bad">${STRIKE_REASONS.map(r => `<button data-act="giveStrike" data-k="${esc(k.id)}" data-r="${esc(r)}" data-close="1">✕ ${esc(r)}</button>`).join('')}</div>`; }).join('')}</div>`); },
   async giveStar(el) {
@@ -407,6 +407,12 @@ export const EXTRA_ACTIONS = {
   goCal() { go('family', 'cal'); },
   goGirlsWeek() { go('family', 'week'); },
   pickKid(el) { S.ui.rk = el.dataset.k; S.ui.slot = null; S.ui.editRoutine = null; Snd.tap(); S.render(); },
+  async focusSend(el) {
+    const box = document.getElementById('fbText'), text = (box?.value || '').trim();
+    if (!text) { box?.focus(); Snd.err(); return; }
+    box.value = ''; Confetti.from(el, 24); Snd.pop();
+    await setDoc('feed/' + uid(), { kid: S.me.id, text }); toast('Posted for the family 💗');
+  },
   noteNew() {
     openSheet(`<h2 id="sheetTitle">💗 Family note</h2><div class="form"><textarea id="noteText" class="hand" rows="4" maxlength="280" placeholder="Be kind, work hard, have fun!" autofocus></textarea>
       <div class="actions"><button class="btn" data-act="closeSheet">Cancel</button><button class="btn solid" data-act="noteSend">Post it</button></div></div>`);

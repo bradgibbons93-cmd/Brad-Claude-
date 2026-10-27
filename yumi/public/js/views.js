@@ -1,10 +1,15 @@
 /* Every screen once you're signed in: Home, Routines, Rewards, Family and Me (Settings for a parent).
    Bright and warm, big icons, and a gold star next to everything you can earn. */
 import { esc, Store, today, ymd, parseYmd, addDays, startOfWeek, DOW, DOWL, MON, MONL, ago, byAtDesc, fmtShort, fmtTime, Snd } from './core.js';
-import { S, P, people, kids, avatar, short, nick, famName, BUDDIES, THEMES, ACCENTS, MOODS, HARD_MOODS, FOODS, SLOTS, JOURNAL_PROMPTS, COVERS, PLAN_COLORS,
+import { S, P, people, kids, avatar, picOf, accentOf, accentSoftOf, short, nick, famName, BUDDIES, THEMES, ACCENTS, MOODS, HARD_MOODS, FOODS, SLOTS, JOURNAL_PROMPTS, COVERS, PLAN_COLORS,
   IDEA_FILTERS, homeFor, homeName, nextSwitch, roster, places, placeOf, rhythm, routineOf, dayOf, routineStats, moodToday, starsOf, strikesOf,
   streakSet, rewardsList, TRAIL_REWARDS, ideasList, jobsFor, doneBy, jobPending, rules, weekDays, isParent, isKid, buddyOf, buddyImg } from './model.js';
 import { isIOS } from './push.js';
+import { gamesPage, gamesTeaser } from './games.js';
+import { diaryPage, diaryQuickCard } from './diary.js';
+import { hqPage, hqHomeCard } from './hq.js';
+import { starReasonButtons, rewardsForDad, friendsPage } from './extras.js';
+import { togetherCard, togetherPage, togetherDad } from './together.js';
 
 const hasArt = k => (S.boot?.art || []).includes(k);
 const slotNow = () => { const h = new Date().getHours(); return h < 12 ? 'morning' : h < 17 ? 'after' : 'bed'; };
@@ -15,10 +20,10 @@ const notesOn = d => Store.col('notes').filter(n => n.date === d && (!n.priv || 
 const eventsOn = d => Store.col('events').filter(e => e.date === d).sort((a, b) => String(a.time || '').localeCompare(String(b.time || '')));
 
 export const TABS_KID = [['home', '🏠', 'Home'], ['routines', '📋', 'Routines'], ['rewards', '🏆', 'Rewards'], ['family', '👨‍👧‍👧', 'Family'], ['me', '😊', 'Me']];
-export const TABS_PARENT = [['home', '🏠', 'Home'], ['routines', '📋', 'Routines'], ['rewards', '🏆', 'Rewards'], ['family', '👨‍👧‍👧', 'Family'], ['me', '⚙️', 'Settings']];
+export const TABS_PARENT = [['home', '🏠', 'Home'], ['routines', '📋', 'Routines'], ['rewards', '🏆', 'Rewards'], ['family', '👨‍👧‍👧', 'Family'], ['hq', '🗂️', 'HQ'], ['me', '⚙️', 'Settings']];
 
 export function viewApp() {
-  const body = { home: tabHome, routines: tabRoutines, rewards: tabRewards, family: tabFamily, me: tabMe }[S.tab] || tabHome;
+  const body = { home: tabHome, routines: tabRoutines, rewards: tabRewards, family: tabFamily, me: tabMe, hq: isParent() ? hqPage : tabHome }[S.tab] || tabHome;
   const tabs = isParent() ? TABS_PARENT : TABS_KID;
   return `<div class="screen"><div class="main">${body()}</div>
     <nav class="nav">${tabs.map(([id, e, t]) => `<button class="${S.tab === id ? 'on' : ''}" data-act="tab" data-tab="${id}" aria-current="${S.tab === id}"><i>${e}</i>${t}</button>`).join('')}</nav>
@@ -34,6 +39,27 @@ function hero() {
   return `<header class="hero">${hasArt('family') ? '<img class="bg" src="/art/family" alt="">' : ''}${sparks}
     <div class="hero-top"><span class="brand"><i>★</i> yumi · ${esc(famName())}</span><span class="datepill">📅 ${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}</span>${isParent() ? `<button class="bell" data-act="openInbox" aria-label="${w} waiting for you">🔔${w ? `<b>${w}</b>` : ''}</button>` : ''}</div>
     <div class="hero-txt"><h1><span class="sun">${d.getHours() < 17 ? '☀️' : '🌙'}</span><span>${greeting()},<br>${esc(me.role === 'parent' ? me.name : me.nick || me.name)}!</span></h1><p>A happy family makes a bright day 💗</p></div></header>`;
+}
+
+/* A kid's Home: the screen is about her. Her own picture from the family art floats as a cutout
+   (a transparent one if she has it, else her usual picture), with one compact box to leave a note or chat. */
+function cutoutOf(id) {
+  const p = P(id), a = p?.art || {}, key = a.cutout || a.full || a.body || a.hero;
+  return key ? `/art/${key}` : picOf(id);
+}
+function focusHero() {
+  const me = P(S.me.id), d = new Date(), name = me.nick || me.name, src = cutoutOf(S.me.id), rs = routineStats(S.me.id);
+  const frac = rs.total ? rs.done / rs.total : 0;
+  return `<header class="focus" style="--ac:${accentOf(S.me.id)};--acs:${accentSoftOf(S.me.id)}">
+    <span class="spark" style="left:8%;top:20%">★</span><span class="spark" style="right:10%;top:14%;animation-delay:.7s">★</span><span class="spark" style="right:30%;top:60%;animation-delay:1.3s">✦</span>
+    <div class="hero-top"><span class="brand"><i>★</i> yumi · ${esc(famName())}</span><span class="datepill">📅 ${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}</span></div>
+    <div class="focus-body"><div class="focus-txt"><p>${greeting()},</p><h1>${esc(name)}!</h1>
+      <button class="fstat" data-act="tab" data-tab="rewards">⭐ <b>${starsOf(S.me.id)}</b> stars</button>${stars5(frac)}<small>${rs.total ? `${rs.done}/${rs.total} done today` : 'A fresh day'}</small></div>
+      <div class="focus-pic">${src ? `<img class="cut" src="${esc(src)}" alt="${esc(name)}">` : `<span class="cut ph">${esc(name[0])}</span>`}<i class="shadow"></i></div></div></header>`;
+}
+function quickBox() {
+  return `<section class="qbox" aria-label="Quick add and chat"><div class="qrow"><input id="fbText" type="text" maxlength="280" placeholder="Write a note or say hi…" aria-label="Write a note or say hi" enterkeyhint="send"><button class="btn solid" data-act="focusSend" aria-label="Send">➤</button></div>
+    <div class="qchips"><button data-act="taskNew">✅ Add a task</button><button data-act="timerOpen">⏱️ Timer</button><button data-act="goNotes">💬 Chat</button></div></section>`;
 }
 
 function personProgress(id) {
@@ -179,14 +205,14 @@ function tabHome() {
   const me = S.me.id;
   if (isParent()) {
     const w = waitingItems();
-    return `${hero()}${peopleCards()}${pushCard()}
+    return `${hero()}${peopleCards()}${hqHomeCard()}${pushCard()}
       ${w.length ? `<section class="card" id="waiting"><div class="ch"><span class="badge b-pink">🔔</span><h3>Waiting for you</h3><em>${w.length}</em></div>${w.map(x => x.html).join('')}</section>` : ''}
-      ${quickButtons()}${girlsStarsCard()}${dadRoutineCard()}${notesCard()}${todayCard()}`;
+      ${quickButtons()}${diaryQuickCard()}${girlsStarsCard()}${dadRoutineCard()}${notesCard()}${todayCard()}${gamesTeaser()}`;
   }
-  return `${hero()}${peopleCards()}${principalCard(me)}${pushCard()}${buddyCard(me)}
+  return `${focusHero()}${quickBox()}${principalCard(me)}${pushCard()}${buddyCard(me)}${peopleCards()}
     ${routineCard(me)}
     <div class="duo"><div class="col">${starsCard(me)}</div><div class="col">${quickButtons()}${notesCard(true)}</div></div>
-    ${moodCard(me)}${todayCard()}`;
+    ${moodCard(me)}${togetherCard(me)}${gamesTeaser()}${todayCard()}`;
 }
 
 /* Asks once (until dismissed) to turn on lock-screen notifications. */
@@ -304,16 +330,15 @@ function tabRewards() {
   if (isParent()) {
     const k = S.ui.rk && S.ui.rk !== 'me' ? S.ui.rk : selKid(), p = P(k);
     if (!p) return '<h1 class="page-title">Rewards</h1>';
-    const sister = kids().find(x => x.id !== k), R = rules(), next = strikesOf(k) + 1;
-    const reasons = ['Helped out', `Kind to ${sister ? sister.nick || sister.name : 'family'}`, 'Tidied up', 'Brave', 'Listened first time', 'Great effort', 'Homework done'];
+    const R = rules(), next = strikesOf(k) + 1;
     const pending = Store.col(`kids/${k}/redeemed`).filter(r => r.status === 'pending');
     return `<h1 class="page-title"><span>🏆</span>Rewards</h1>${kidChips(false)}${jarCard(k)}${paydayCards(k, true)}
       <section class="card"><div class="ch"><span class="badge b-gold">⭐</span><h3>Give ${esc(p.nick || p.name)} a star</h3></div>
-        <div class="reasons">${reasons.map(r => `<button data-act="giveStar" data-k="${esc(k)}" data-r="${esc(r)}" data-n="1">★ ${esc(r)}</button>`).join('')}<button data-act="giveStar" data-k="${esc(k)}" data-r="Big win" data-n="3">★ Big win +3</button></div></section>
+        ${starReasonButtons(k)}</section>
       <section class="card"><div class="ch"><span class="badge" style="background:var(--bad)">✖️</span><h3>Give a strike</h3><em>${next >= R.principalAt ? `#${next}: principal` : next % R.strikesPerStar === 0 ? `#${next} takes a ★` : `would be #${next}`}</em></div>
         <div class="reasons bad">${['Not listening', 'Unkind words', "Didn't tidy up", 'Screen time over'].map(r => `<button data-act="giveStrike" data-k="${esc(k)}" data-r="${esc(r)}">✕ ${esc(r)}</button>`).join('')}</div></section>
       ${pending.length ? `<section class="card"><div class="ch"><span class="badge b-pink">🎟️</span><h3>Her tickets</h3></div>${pending.map(r => `<div class="wait"><span class="e">${esc(r.emoji)}</span><span class="tt"><b>${esc(r.title)}</b><small>★${r.cost} · ${ago(r.at)}</small></span><span class="acts"><button class="btn blue small" data-act="redSet" data-k="${esc(k)}" data-id="${esc(r.id)}" data-s="done">Done</button><button class="btn small" data-act="redSet" data-k="${esc(k)}" data-id="${esc(r.id)}" data-s="declined">Not now</button></span></div>`).join('')}</section>` : ''}
-      ${strikesCard(k)}${logCard(k, true)}`;
+      ${rewardsForDad(k)}${strikesCard(k)}${logCard(k, true)}`;
   }
   const me = S.me.id;
   return `<h1 class="page-title"><span>🏆</span>My Rewards</h1>${principalCard(me)}${jarCard(me)}${paydayCards(me, false)}${trailCard(me)}${shopCard(me)}${strikesCard(me)}${logCard(me, false)}`;
@@ -322,12 +347,12 @@ function tabRewards() {
 /* ---------- Family ---------- */
 function famChips() {
   const sub = S.sub || 'cal';
-  const list = [['cal', '📅', 'Calendar'], ['week', '🧭', isParent() ? "Girls' week" : 'My week'], ['notes', '💬', 'Notes'], ['ideas', '💡', 'Ideas']];
+  const list = [['cal', '📅', 'Calendar'], ['week', '🧭', isParent() ? "Girls' week" : 'My week'], ['notes', '💬', 'Notes'], ['ideas', '💡', 'Ideas'], ...(isParent() ? [['together', '💞', 'Together'], ['friends', '🧸', 'Friends']] : [])];
   return `<div class="chips">${list.map(([id, e, t]) => `<button class="${sub === id ? 'on' : ''}" data-act="sub" data-sub="${id}">${e} ${t}</button>`).join('')}</div>`;
 }
 function tabFamily() {
   const sub = S.sub || 'cal';
-  const body = sub === 'week' ? (isParent() ? girlsWeek() : myWeek(S.me.id)) : sub === 'notes' ? notesPage() : sub === 'ideas' ? ideasPage() : calPage();
+  const body = sub === 'week' ? (isParent() ? girlsWeek() : myWeek(S.me.id)) : sub === 'notes' ? notesPage() : sub === 'ideas' ? ideasPage() : sub === 'friends' && isParent() ? friendsPage() : sub === 'together' && isParent() ? togetherDad() : calPage();
   return `<h1 class="page-title"><span>👨‍👧‍👧</span>Family</h1>${famChips()}${body}`;
 }
 
@@ -425,12 +450,15 @@ function ideasPage() {
 /* ---------- Me / Settings ---------- */
 const backBtn = () => `<div class="backrow"><button class="btn small" data-act="sub" data-sub="">‹ Back</button></div>`;
 function tabMe() {
-  if (isParent()) return S.sub === 'phones' ? phonesPage() : S.sub === 'settings' ? settingsPage() : parentMenu();
+  if (S.sub === 'games') return gamesPage();
+  if (isParent()) return S.sub === 'phones' ? phonesPage() : S.sub === 'settings' ? settingsPage() : S.sub === 'diary' ? diaryPage() : parentMenu();
   const k = S.me.id;
   if (S.sub === 'journal') return journalPage(k);
   if (S.sub === 'mine') return minePage(k);
   if (S.sub === 'planner') return plannerPage(k);
   if (S.sub === 'wish') return wishPage(k);
+  if (S.sub === 'friends') return friendsPage();
+  if (S.sub === 'together') return togetherPage();
   const p = P(k), b = buddyOf(k);
   return `<div class="profile">${picEdit(k)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || '')}</p><p>⭐ ${starsOf(k)} · 🔥 ${streakOf(k)} days${b ? ` · ${esc(b.name)}` : ''}</p></div></div>
     <div class="tiles">
@@ -438,6 +466,9 @@ function tabMe() {
       <button class="c-pink" data-act="sub" data-sub="mine"><i>🎨</i><b>Make it mine</b><small>Picture, buddy, look</small></button>
       <button class="c-mint" data-act="sub" data-sub="planner"><i>🗓️</i><b>My Planner</b><small>${Store.col(`kids/${k}/plans`).filter(x => !x.done).length} to do</small></button>
       <button class="c-sun" data-act="sub" data-sub="wish"><i>🎁</i><b>Wishlist</b><small>${Store.col(`kids/${k}/wishlist`).length} wishes</small></button>
+      <button class="c-pink" data-act="sub" data-sub="friends"><i>🧸</i><b>My friends</b><small>${Store.col(`kids/${k}/friends`).length || 'Add'} ${Store.col(`kids/${k}/friends`).length === 1 ? 'friend' : Store.col(`kids/${k}/friends`).length ? 'friends' : 'a friend'}</small></button>
+      <button class="c-pink" data-act="sub" data-sub="together"><i>💞</i><b>Good &amp; hard days</b><small>${Store.col(`kids/${k}/together`).length ? 'See your weeks' : 'Check in each day'}</small></button>
+      <button class="c-lilac" data-act="sub" data-sub="games"><i>🎮</i><b>Games</b><small>Word search, memory, noughts &amp; crosses</small></button>
       ${pushTile('c-blue')}
       <button class="c-mint" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
       <button class="c-ocean" data-act="signOut"><i>👋</i><b>Sign out</b><small>Your code brings you back</small></button>
@@ -498,9 +529,12 @@ function parentMenu() {
   const p = P(S.me.id);
   return `<div class="profile">${picEdit(S.me.id)}<div><h1>${esc(p.name)}</h1><p>${esc(p.title || 'Parent')}</p><p>🔥 ${Number(p.pub?.streak) || 0} day streak</p></div></div>
     <div class="tiles">
-      <button class="c-lilac" data-act="sub" data-sub="phones"><i>📱</i><b>Phones</b><small>Add a phone, codes</small></button>
+      <button class="c-pink" data-act="sub" data-sub="diary"><i>📔</i><b>My diary</b><small>${Store.col(`diary/${S.me.id}`).length} private notes</small></button>
+      <button class="c-lilac" data-act="sub" data-sub="games"><i>🎮</i><b>Games</b><small>Word search, memory, noughts &amp; crosses</small></button>
+      <button class="c-blue" data-act="sub" data-sub="phones"><i>📱</i><b>Phones</b><small>Add a phone, codes</small></button>
       <button class="c-blue" data-act="sub" data-sub="settings"><i>🏠</i><b>Houses &amp; goal</b><small>Pattern, places, family goal</small></button>
       <button class="c-mint" data-act="goGirlsWeek"><i>🧭</i><b>Girls' week</b><small>What they'd like</small></button>
+      <button class="c-pink" data-act="tgDad"><i>💞</i><b>Good &amp; hard days</b><small>The girls' weeks, as a graph</small></button>
       <a class="c-sun" href="/api/export" download><i>💾</i><b>Backup</b><small>Download everything</small></a>
       ${pushTile('c-pink')}
       <button class="c-mint" data-act="sound"><i>${Snd.on ? '🔊' : '🔈'}</i><b>Sounds</b><small>${Snd.on ? 'On' : 'Off'}</small></button>
@@ -573,8 +607,8 @@ export function waitingItems() {
     items.push({ at: d.at, html: `<div class="wait"><span class="e">${esc(tk?.e || '🧹')}</span><span class="tt"><b>${esc(k.name)} did "${esc(tk?.t || 'a job')}"</b><small>yes gives her +${Number(d.stars) || 1} ★ · ${ago(d.at)}</small></span><span class="acts"><button class="btn good small" data-act="jobOk" data-id="${esc(d.id)}" data-ok="1">✓ Yes</button><button class="btn small" data-act="jobOk" data-id="${esc(d.id)}" data-ok="0">Not yet</button></span></div>` });
   }
   for (const i of Store.col('inbox').filter(x => !x.seen && x.kind !== 'payday')) {
-    const e = { strike: '⚠️', principal: '🏫', hug: '🤗', journal: '📓' }[i.kind] || '🔔';
-    const btn = i.kind === 'journal' ? `<button class="btn blue small" data-act="readPage" data-id="${esc(i.id)}">Read</button>` : i.kind === 'hug' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Hugged ✓</button>` : `<button class="btn ink small" data-act="seen" data-id="${esc(i.id)}">Seen</button>`;
+    const e = { strike: '⚠️', principal: '🏫', hug: '🤗', journal: '📓', playdate: '🧸', together: '💞' }[i.kind] || '🔔';
+    const btn = i.kind === 'journal' ? `<button class="btn blue small" data-act="readPage" data-id="${esc(i.id)}">Read</button>` : i.kind === 'hug' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Hugged ✓</button>` : i.kind === 'playdate' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">Got it ✓</button>` : i.kind === 'together' ? `<button class="btn good small" data-act="seen" data-id="${esc(i.id)}">We talked ✓</button>` : `<button class="btn ink small" data-act="seen" data-id="${esc(i.id)}">Seen</button>`;
     items.push({ at: i.at, html: `<div class="wait ${i.kind === 'strike' || i.kind === 'principal' ? 'warn' : ''}"><span class="e">${e}</span><span class="tt"><b>${esc(i.title)}</b><small>${esc(i.sub || '')} · ${ago(i.at)}</small></span>${btn}</div>` });
   }
   return items.sort((a, b) => String(b.at).localeCompare(String(a.at)));

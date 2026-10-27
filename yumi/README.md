@@ -37,7 +37,7 @@ It runs as one small Bun server with Postgres, on Railway.
   puts a request on Dad's Waiting for you (`askPlaydate`).
 - Dad's own reasons for a star are kept at `settings/starReasons`; the Spend or save rewards he can
   change are `settings/rewards`, which the server also reads for what each costs.
-- Games keep progress at `play/<person>/<game>`: the KATSEYE word search, Memory match and Noughts &
+- Games keep progress at `play/<person>/<game>`: the KATSEYE word search, Memory match (eight KATSEYE photo cards in `public/img/katseye/`), seven poster games in `public/js/games2.js`, and Noughts &
   crosses (`public/js/minigames.js`; the noughts & crosses rules and Yumi's moves are in `xo.js`). Everyone can see how far the others got; only you can
   move your own. Games never give stars. The puzzle logic is in `public/js/wordsearch.js` so the unit
   tests can check every word is on the printable and that every shuffle fits all twelve.

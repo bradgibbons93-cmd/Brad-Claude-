@@ -13,9 +13,18 @@ const shuffle = list => { const a = list.slice(); for (let i = a.length - 1; i >
 const fmtMs = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 /* ---------- Memory match ---------- */
-const SETS = { katseye: { t: 'KATSEYE', e: ['💜', '⭐', '🎤', '🎧', '💃', '🦋', '💿', '🌈'] }, animals: { t: 'Animals', e: ['🐶', '🐱', '🐰', '🦊', '🐼', '🐨', '🦄', '🐸'] } };
-function newMemory(size = 12, set = 'katseye') {
-  const pick = shuffle(SETS[set].e).slice(0, size / 2);
+/* KATSEYE photos from the user-supplied quiz reference are cropped into local card assets. */
+const PHOTO_IDS = ['member1', 'member2', 'member3', 'member4', 'member5', 'member6', 'group1', 'group2'];
+const PHOTO_LABELS = ['KATSEYE photo 1', 'KATSEYE photo 2', 'KATSEYE photo 3', 'KATSEYE photo 4', 'KATSEYE photo 5', 'KATSEYE photo 6', 'KATSEYE group photo 1', 'KATSEYE group photo 2'];
+const PHOTO_COLORS = ['#FF5FA2', '#A35BFF', '#3FA9F5', '#22C08A', '#FFB020', '#FF7A45', '#E040FB', '#00B8D4'];
+export const MEMBERS = Object.fromEntries(PHOTO_IDS.map((id, i) => [id, [PHOTO_LABELS[i], PHOTO_COLORS[i]]]));
+const face = v => MEMBERS[v] ? `<span class="mp" style="--c:${MEMBERS[v][1]}"><b>${PHOTO_IDS.indexOf(v) + 1}</b><img src="/img/katseye/${v}.webp" alt="" loading="lazy"><small>KATSEYE</small></span>` : esc(v);
+const label = v => MEMBERS[v]?.[0] || v;
+document.addEventListener('error', e => { if (e.target?.matches?.('.mp img')) e.target.remove(); }, true);
+const SETS = { members: { t: 'KATSEYE photos', e: PHOTO_IDS }, katseye: { t: 'KATSEYE', e: ['💜', '⭐', '🎤', '🎧', '💃', '🦋', '💿', '🌈'] }, animals: { t: 'Animals', e: ['🐶', '🐱', '🐰', '🦊', '🐼', '🐨', '🦄', '🐸'] } };
+function newMemory(size = 12, set = 'members') {
+  const n = size / 2;
+  const pick = set === 'members' ? shuffle(PHOTO_IDS).slice(0, n) : shuffle(SETS[set].e).slice(0, n);
   return { deck: shuffle([...pick, ...pick]), open: [], matched: [], moves: 0, started: null, size, set, lock: false };
 }
 const mem = () => (S.ui.mem ||= newMemory());
@@ -23,10 +32,10 @@ const mem = () => (S.ui.mem ||= newMemory());
 export function memoryPage() {
   const m = mem(), p = progOf('memory'), best = p['best' + m.size], done = m.matched.length === m.deck.length;
   return `<section class="card mg"><div class="ch"><span class="badge b-lilac">🃏</span><h3>Memory match</h3><em>${m.moves} moves</em></div>
-    <div class="chips sm">${[[12, 'Easy · 12'], [16, 'Hard · 16']].map(([n, t]) => `<button class="${m.size === n ? 'on' : ''}" data-act="memSize" data-n="${n}">${t}</button>`).join('')}${Object.entries(SETS).map(([k, x]) => `<button class="${m.set === k ? 'on' : ''}" data-act="memSet" data-s="${k}">${x.e[0]} ${x.t}</button>`).join('')}</div>
+    <div class="chips sm">${[[12, 'Easy · 12'], [16, 'Hard · 16']].map(([n, t]) => `<button class="${m.size === n ? 'on' : ''}" data-act="memSize" data-n="${n}">${t}</button>`).join('')}${Object.entries(SETS).map(([k, x]) => `<button class="${m.set === k ? 'on' : ''}" data-act="memSet" data-s="${k}">${k === 'members' ? '📸' : x.e[0]} ${x.t}</button>`).join('')}</div>
     ${done ? `<div class="ws-done"><span>🎉</span><b>All pairs in ${m.moves} moves${m.ms ? ` · ${fmtMs(m.ms)}` : ''}!</b>${best ? `<small>Your best: ${best} moves</small>` : ''}<button class="btn solid" data-act="memNew">Play again</button></div>` : ''}
     <div class="mem n${m.size}" role="group" aria-label="Memory cards. Tap two to find a pair.">${m.deck.map((e, i) => { const up = m.open.includes(i) || m.matched.includes(i);
-      return `<button class="mc ${up ? 'up' : ''} ${m.matched.includes(i) ? 'got' : ''}" data-act="memFlip" data-i="${i}" aria-label="${up ? e : 'Card ' + (i + 1)}" ${m.matched.includes(i) ? 'disabled' : ''}><span class="back">★</span><span class="face">${e}</span></button>`; }).join('')}</div>
+      return `<button class="mc ${up ? 'up' : ''} ${m.matched.includes(i) ? 'got' : ''}" data-act="memFlip" data-i="${i}" aria-label="${up ? label(e) : 'Card ' + (i + 1)}" ${m.matched.includes(i) ? 'disabled' : ''}><span class="back">★</span><span class="face">${face(e)}</span></button>`; }).join('')}</div>
     <p class="ws-help">${done ? 'Nice memory! 🧠' : 'Tap two cards. Find all the pairs in as few moves as you can.'}${best && !done ? ` Best: ${best} moves.` : ''}</p>
     <div class="ws-acts"><button class="btn" data-act="memNew">🔀 New game</button></div></section>
     ${crew('memory', pr => pr.best12 || pr.best16 ? [pr.best12 ? `Easy best ${pr.best12} moves` : '', pr.best16 ? `Hard best ${pr.best16}` : ''].filter(Boolean).join(' · ') : '')}`;

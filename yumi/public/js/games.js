@@ -5,11 +5,19 @@ import { esc, Store, nowIso, Snd, Confetti, toast, write } from './core.js';
 import { S, people, avatar, short, isParent } from './model.js';
 import { N, KATSEYE_SHEET, KATSEYE_WORDS, makeGrid, locate, lineCells, snap } from './wordsearch.js';
 import { memoryPage, xoPage } from './minigames.js';
+import { roomPage, happyPage, energyPage, packPage, dayPage, quizPage, ratherPage } from './games2.js';
 
 export const GAMES = [
   { id: 'katseye', e: '💜', t: 'KATSEYE Word Search', d: 'Find the 12 hidden words', words: KATSEYE_WORDS, sheet: KATSEYE_SHEET },
   { id: 'memory', e: '🃏', t: 'Memory match', d: 'Flip two, find the pairs', page: memoryPage },
   { id: 'xo', e: '⭕', t: 'Noughts & crosses', d: 'Beat Yumi, or play your sister', page: xoPage },
+  { id: 'room', e: '🛏️', t: 'My Room', d: 'Decorate your dream room', page: roomPage },
+  { id: 'happy', e: '🌈', t: 'My Happy Place', d: 'Build the place that feels best', page: happyPage },
+  { id: 'energy', e: '⚡', t: 'Follow Your Energy', d: 'Pick what to do for how you feel', page: energyPage },
+  { id: 'pack', e: '🎒', t: 'Sleepover Packing List', d: 'Pack your bag, tick it off', page: packPage },
+  { id: 'day', e: '🗓️', t: 'Daily Routine', d: 'Plan your day, morning to night', page: dayPage },
+  { id: 'quiz', e: '💜', t: 'KATSEYE Quiz', d: 'How much do you know?', page: quizPage },
+  { id: 'rather', e: '🤔', t: 'Would You Rather', d: 'Pick one, no wrong answers', page: ratherPage },
 ];
 const COLORS = ['#FF5FA2', '#A35BFF', '#3FA9F5', '#22C08A', '#FFB020', '#FF7A45', '#E040FB', '#00B8D4', '#7C4DFF', '#F06292', '#26A69A', '#FFCA28'];
 const gameById = id => GAMES.find(g => g.id === id) || GAMES[0];
@@ -34,7 +42,7 @@ export function gamesTeaser() {
   const g = GAMES[0], n = Object.keys(foundOf(progOf(g.id))).length, all = g.words.length;
   return `<button class="card gamecard" data-act="goGames" style="text-align:left"><div class="ch"><span class="badge b-lilac">🎮</span><h3>Games</h3><em>${n === all ? 'All found! ✓' : n ? `${n}/${all} found` : 'New'}</em></div>
     <span class="gc-row"><span class="gc-ic">${g.e}</span><span class="grow"><b>${esc(g.t)}</b><small>${n && n < all ? 'Keep going, you got this!' : esc(g.d)}</small></span><span class="gc-go">Play ›</span></span>
-    <small class="gc-more">Also: ${GAMES.slice(1).map(x => `${x.e} ${esc(x.t)}`).join(' · ')}</small></button>`;
+    <small class="gc-more">Also: ${GAMES.slice(1, 4).map(x => `${x.e} ${esc(x.t)}`).join(' · ')} and ${GAMES.length - 4} more</small></button>`;
 }
 
 export function gamesPage() {
